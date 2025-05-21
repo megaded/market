@@ -32,7 +32,7 @@ func (h *Handler) Register() func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(err.Error()))
 			return
 		}
-		newUser, err := h.Storage.CreateUser(user.Name, user.Password)
+		newUser, err := h.Storage.CreateUser(user.Login, user.Password)
 		if err != nil {
 			switch {
 			case errors.Is(err, internal_error.ErrUserAlreadyExists):
@@ -67,11 +67,11 @@ func (h *Handler) Login() func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(err.Error()))
 			return
 		}
-		if user.Name == "" || user.Password == "" {
+		if user.Login == "" || user.Password == "" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		userInfo, err := h.Storage.GetUser(user.Name)
+		userInfo, err := h.Storage.GetUser(user.Login)
 		switch {
 		case err == nil:
 			valResult := h.Identity.VerifyPassword(userInfo.Hash, user.Password)
@@ -81,7 +81,7 @@ func (h *Handler) Login() func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusInternalServerError)
 					return
 				}
-				logger.Log.Info(fmt.Sprintf("User %s Authorization", user.Name))
+				logger.Log.Info(fmt.Sprintf("User %s Authorization", user.Login))
 				w.Header().Set("Authorization", fmt.Sprintf("Bearer %s", token))
 				w.WriteHeader(http.StatusOK)
 				return

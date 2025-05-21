@@ -11,8 +11,8 @@ import (
 )
 
 type Storager interface {
-	GetOrders(userId int64) ([]Order, error)
-	GetBalance(userId int64) (Balance, error)
+	GetOrders(userID int64) ([]Order, error)
+	GetBalance(userID int64) (Balance, error)
 	CreateUser(login string, hash string) (User, error)
 	GetUser(login string) (User, error)
 }
@@ -22,7 +22,7 @@ type storage struct {
 	identity identity.IdentityProvider
 }
 
-func (s *storage) GetOrders(userId int64) ([]Order, error) {
+func (s *storage) GetOrders(userID int64) ([]Order, error) {
 	return nil, nil
 }
 
