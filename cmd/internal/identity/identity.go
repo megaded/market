@@ -10,11 +10,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/megaded/market/cmd/internal/config"
 	"github.com/megaded/market/cmd/internal/logger"
-	"github.com/megaded/market/cmd/internal/storage"
 	"go.uber.org/zap"
 )
 
-const UserId = "user_id"
+const UserID = "user_id"
 
 type IdentityProvider struct {
 	key string
@@ -26,7 +25,7 @@ func CreateIdentityProvider(c *config.Config) IdentityProvider {
 
 func (id *IdentityProvider) GenerateToken(userID int) (string, error) {
 	claims := jwt.MapClaims{
-		UserId: userID,
+		UserID: userID,
 		"exp":  time.Now().Add(24 * time.Hour).Unix(),
 		"iat":  time.Now().Unix(),
 	}
@@ -63,7 +62,9 @@ func (id *IdentityProvider) HashPassword(password string) string {
 	return base64.StdEncoding.EncodeToString(hash.Sum(nil))
 }
 
-func (id *IdentityProvider) VerifyPassword(user storage.User, password string) bool {
+func (id *IdentityProvider) VerifyPassword(hash string, password string) bool {
 	hashedPassword := id.HashPassword(password)
-	return hmac.Equal([]byte(user.Hash), []byte(hashedPassword))
+	logger.Log.Info(hash)
+	logger.Log.Info(hashedPassword)
+	return hmac.Equal([]byte(hash), []byte(hashedPassword))
 }

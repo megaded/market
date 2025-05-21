@@ -10,7 +10,7 @@ const key = "1434535454545435435435435"
 
 type Config struct {
 	Address              string `env:"RUN_ADDRESS"`
-	DbConnString         string `env:"DATABASE_URI"`
+	DBConnString         string `env:"DATABASE_URI"`
 	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS"`
 	SecretKey            string `env:"SECRET_KEY"`
 }
@@ -35,8 +35,8 @@ func setCmdParam(c *Config) {
 	if c.Address == "" {
 		c.Address = *address
 	}
-	if c.DbConnString == "" {
-		c.DbConnString = *dBConnString
+	if c.DBConnString == "" {
+		c.DBConnString = *dBConnString
 	}
 	if c.AccrualSystemAddress == "" {
 		c.AccrualSystemAddress = *accrualSystemAddress

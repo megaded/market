@@ -1,11 +1,11 @@
 package storage
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
+	"errors"
 
 	"github.com/megaded/market/cmd/internal/config"
+	internal_error "github.com/megaded/market/cmd/internal/error"
+	"github.com/megaded/market/cmd/internal/identity"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -13,20 +13,46 @@ import (
 type Storager interface {
 	GetOrders(userId int64) ([]Order, error)
 	GetBalance(userId int64) (Balance, error)
-	CreateUser(login string, hash string) error
+	CreateUser(login string, hash string) (User, error)
+	GetUser(login string) (User, error)
 }
 
 type storage struct {
-	db  *gorm.DB
-	key string
+	db       *gorm.DB
+	identity identity.IdentityProvider
 }
 
 func (s *storage) GetOrders(userId int64) ([]Order, error) {
 	return nil, nil
 }
-func (s *storage) CreateUser(login string, password string) error {
-	r := s.db.Create(&User{Name: login, Hash: hash(password, s.key)})
-	return r.Error
+
+func (s *storage) GetUser(login string) (User, error) {
+	var user User
+	result := s.db.Where("name = ?", login).First(&user)
+	switch {
+	case errors.Is(result.Error, gorm.ErrRecordNotFound):
+		return user, internal_error.ErrUserNotFound
+	default:
+		return user, result.Error
+	}
+}
+
+func (s *storage) CreateUser(login string, password string) (User, error) {
+	if login == "" || password == "" {
+		return User{}, internal_error.ErrEmptyLoginOrPassword
+	}
+	var user User
+	result := s.db.Where("name = ?", login).First(&user)
+	switch {
+	case result.Error == nil:
+		return User{}, internal_error.ErrUserAlreadyExists
+	case errors.Is(result.Error, gorm.ErrRecordNotFound):
+		r := s.db.Create(&User{Name: login, Hash: s.identity.HashPassword(password)})
+		return user, r.Error
+	default:
+		return User{}, result.Error
+
+	}
 }
 
 func (s *storage) GetBalance(userId int64) (Balance, error) {
@@ -34,7 +60,7 @@ func (s *storage) GetBalance(userId int64) (Balance, error) {
 }
 
 func NewStorage(c *config.Config) Storager {
-	db, err := gorm.Open(postgres.Open(c.DbConnString), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(c.DBConnString), &gorm.Config{})
 	if err != nil {
 		panic("failed to connect database")
 	}
@@ -43,11 +69,5 @@ func NewStorage(c *config.Config) Storager {
 	db.AutoMigrate(&Order{})
 	db.AutoMigrate(&Balance{})
 	db.AutoMigrate(&Operation{})
-	return &storage{}
-}
-
-func hash(password string, key string) string {
-	h := hmac.New(sha256.New, []byte(key))
-	h.Write([]byte(password))
-	return hex.EncodeToString(h.Sum(nil))
+	return &storage{db: db}
 }

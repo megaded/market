@@ -3,25 +3,34 @@ package storage
 import "gorm.io/gorm"
 
 type User struct {
-	Name string
-	Hash string
+	gorm.Model
+	Name      string
+	Hash      string
+	Operation []Operation
 }
 
 type Order struct {
 	gorm.Model
-	Number  int64
+	UserID uint
+	User
+	Number  uint
 	Accrual int64
 	Status  string
 }
 
 type Balance struct {
+	gorm.Model
+	UserID    uint
 	User      User
 	Balance   int64
 	Withdrawn int64
 }
 
 type Operation struct {
-	User  User
-	Order Order
-	Value int64
+	gorm.Model
+	UserID  uint
+	User    User
+	OrderID uint
+	Order   Order
+	Value   int64
 }
