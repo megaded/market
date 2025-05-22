@@ -12,11 +12,8 @@ import (
 func AuthMiddleWare(id identity.IdentityProvider) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
-			logger.Log.Info("auth")
 			token := r.Header.Get("Authorization")
-			logger.Log.Info(token)
 			if token == "" {
-				logger.Log.Info("token")
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}

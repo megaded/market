@@ -23,12 +23,11 @@ type Handler struct {
 }
 
 func getUserID(r *http.Request) (uint, error) {
-	userID, ok := r.Context().Value(identity.UserID).(int)
-	logger.Log.Info(fmt.Sprintf("%s", userID))
+	userID, ok := r.Context().Value(identity.UserID).(uint)
 	if !ok {
 		return 0, errors.New("user ID not found in context")
 	}
-	return 1, nil
+	return userID, nil
 }
 
 func CreateHandlers(s storage.Storager, m manager.OrderManager) Handler {
@@ -144,16 +143,23 @@ func (h *Handler) LoadOrder() func(w http.ResponseWriter, r *http.Request) {
 		if err = h.OrderManager.AddOrder(int64(userID), string(orderNumber)); err != nil {
 			switch {
 			case errors.Is(err, internal_error.ErrInvalidOrderNumber):
+				logger.Log.Info(string(orderNumber))
+				logger.Log.Info(err.Error())
 				w.WriteHeader(http.StatusUnprocessableEntity)
 				return
 			case errors.Is(err, internal_error.ErrOrderAlreadyExists):
+				logger.Log.Info(string(orderNumber))
+				logger.Log.Info(err.Error())
 				w.WriteHeader(http.StatusOK)
 				return
 			case errors.Is(err, internal_error.ErrOrderAlreadyExistsForAnotherUser):
+				logger.Log.Info(string(orderNumber))
+				logger.Log.Info(err.Error())
 				w.WriteHeader(http.StatusConflict)
 				return
 			default:
 				w.WriteHeader(http.StatusInternalServerError)
+				logger.Log.Info(string(orderNumber))
 				logger.Log.Info("failed to add order", zap.Error(err))
 				return
 			}
