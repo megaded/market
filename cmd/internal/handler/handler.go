@@ -22,8 +22,8 @@ type Handler struct {
 	OrderManager manager.OrderManager
 }
 
-func getUserID(r *http.Request) (uint, error) {
-	userID, ok := r.Context().Value(identity.UserID).(uint)
+func getUserID(r *http.Request) (int, error) {
+	userID, ok := r.Context().Value(identity.UserID).(int)
 	if !ok {
 		return 0, errors.New("user ID not found in context")
 	}
