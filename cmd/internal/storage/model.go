@@ -2,6 +2,15 @@ package storage
 
 import "gorm.io/gorm"
 
+type OrderStatus string
+
+const (
+	OrderStatusNew        OrderStatus = "NEW"
+	OrderStatusProcessing OrderStatus = "PROCESSING"
+	OrderStatusInvalid    OrderStatus = "INVALID"
+	OrderStatusProcessed  OrderStatus = "PROCESSED"
+)
+
 type User struct {
 	gorm.Model
 	Name      string
@@ -13,9 +22,9 @@ type Order struct {
 	gorm.Model
 	UserID uint
 	User
-	Number  uint
+	Number  string
 	Accrual int64
-	Status  string
+	Status  OrderStatus
 }
 
 type Balance struct {

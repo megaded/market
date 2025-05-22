@@ -12,6 +12,8 @@ import (
 
 type Storager interface {
 	GetOrders(userID int64) ([]Order, error)
+	GetOrder(orderNumber string) (Order, error)
+	CreateOrder(userID int64, orderNumber string) (Order, error)
 	GetBalance(userID int64) (Balance, error)
 	CreateUser(login string, hash string) (User, error)
 	GetUser(login string) (User, error)
@@ -22,8 +24,32 @@ type storage struct {
 	identity identity.IdentityProvider
 }
 
+func (s *storage) CreateOrder(userID int64, orderNumber string) (Order, error) {
+	order := Order{UserID: uint(userID), Number: orderNumber}
+	r := s.db.Create(&order)
+	return order, r.Error
+}
+
 func (s *storage) GetOrders(userID int64) ([]Order, error) {
-	return nil, nil
+	var orders []Order
+	result := s.db.Where("user_id = ?", userID).Find(&orders)
+	switch {
+	case errors.Is(result.Error, gorm.ErrRecordNotFound):
+		return orders, internal_error.ErrOrderNotFound
+	default:
+		return orders, result.Error
+	}
+}
+
+func (s *storage) GetOrder(orderNumber string) (Order, error) {
+	var order Order
+	result := s.db.Where("number = ?", orderNumber).First(&order)
+	switch {
+	case errors.Is(result.Error, gorm.ErrRecordNotFound):
+		return order, internal_error.ErrOrderNotFound
+	default:
+		return order, result.Error
+	}
 }
 
 func (s *storage) GetUser(login string) (User, error) {

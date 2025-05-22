@@ -4,22 +4,35 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/megaded/market/cmd/internal/dto"
 	internal_error "github.com/megaded/market/cmd/internal/error"
 	"github.com/megaded/market/cmd/internal/identity"
 	"github.com/megaded/market/cmd/internal/logger"
+	"github.com/megaded/market/cmd/internal/manager"
 	"github.com/megaded/market/cmd/internal/storage"
+	"go.uber.org/zap"
 )
 
 type Handler struct {
-	Storage  storage.Storager
-	Identity identity.IdentityProvider
+	Storage      storage.Storager
+	Identity     identity.IdentityProvider
+	OrderManager manager.OrderManager
 }
 
-func CreateHandlers(s storage.Storager) Handler {
-	return Handler{Storage: s}
+func getUserID(r *http.Request) (uint, error) {
+	userID, ok := r.Context().Value(identity.UserID).(int)
+	logger.Log.Info(fmt.Sprintf("%s", userID))
+	if !ok {
+		return 0, errors.New("user ID not found in context")
+	}
+	return 1, nil
+}
+
+func CreateHandlers(s storage.Storager, m manager.OrderManager) Handler {
+	return Handler{Storage: s, OrderManager: m}
 }
 
 func (h *Handler) Register() func(w http.ResponseWriter, r *http.Request) {
@@ -104,13 +117,78 @@ func (h *Handler) Login() func(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) LoadOrder() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		logger.Log.Info("LoadOrder")
+		userID, err := getUserID(r)
+		if err != nil {
+			logger.Log.Info(err.Error())
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
+		if r.Header.Get("Content-Type") != "text/plain" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		orderNumber, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if len(orderNumber) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if err = h.OrderManager.AddOrder(int64(userID), string(orderNumber)); err != nil {
+			switch {
+			case errors.Is(err, internal_error.ErrInvalidOrderNumber):
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				return
+			case errors.Is(err, internal_error.ErrOrderAlreadyExists):
+				w.WriteHeader(http.StatusOK)
+				return
+			case errors.Is(err, internal_error.ErrOrderAlreadyExistsForAnotherUser):
+				w.WriteHeader(http.StatusConflict)
+				return
+			default:
+				w.WriteHeader(http.StatusInternalServerError)
+				logger.Log.Info("failed to add order", zap.Error(err))
+				return
+			}
+		}
+
+		w.WriteHeader(http.StatusAccepted)
 	}
 }
 
 func (h *Handler) Orders() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-
+		userID, err := getUserID(r)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		orders, err := h.Storage.GetOrders(int64(userID))
+		if err != nil {
+			switch {
+			case errors.Is(err, internal_error.ErrOrderNotFound):
+				w.WriteHeader(http.StatusNoContent)
+				logger.Log.Info("orders not found", zap.Error(err))
+				return
+			default:
+				w.WriteHeader(http.StatusInternalServerError)
+				logger.Log.Info("internal error", zap.Error(err))
+				return
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err = json.NewEncoder(w).Encode(orders); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			logger.Log.Info("failed to encode orders", zap.Error(err))
+			return
+		}
 	}
 }
 
