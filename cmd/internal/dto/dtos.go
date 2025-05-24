@@ -1,6 +1,12 @@
 package dto
 
-type UserDto struct {
+type User struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
+}
+
+type Accrual struct {
+	Order   string
+	Status  string
+	Accrual int
 }

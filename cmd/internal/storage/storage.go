@@ -17,6 +17,8 @@ type Storager interface {
 	GetBalance(userID int64) (Balance, error)
 	CreateUser(login string, hash string) (User, error)
 	GetUser(login string) (User, error)
+	GetProcessingOrders() ([]Order, error)
+	UpdateOrder(number string, status string, accrual int) error
 }
 
 type storage struct {
@@ -28,6 +30,26 @@ func (s *storage) CreateOrder(userID int64, orderNumber string) (Order, error) {
 	order := Order{UserID: uint(userID), Number: orderNumber}
 	r := s.db.Create(&order)
 	return order, r.Error
+}
+func (s *storage) UpdateOrder(number string, status string, accrual int) error {
+	if err := s.db.Model(Order{}).Where("number = ?", number).Select("status", "accrual").Updates(map[string]interface{}{"status": status, "accrual": accrual}).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return internal_error.ErrOrderNotFound
+		}
+		return err
+	}
+	return nil
+}
+
+func (s *storage) GetProcessingOrders() ([]Order, error) {
+	var orders []Order
+	result := s.db.Where("status = ? or status = ?", OrderStatusNew, OrderStatusProcessing).Find(&orders)
+	switch {
+	case errors.Is(result.Error, gorm.ErrRecordNotFound):
+		return orders, internal_error.ErrOrderNotFound
+	default:
+		return orders, result.Error
+	}
 }
 
 func (s *storage) GetOrders(userID int64) ([]Order, error) {

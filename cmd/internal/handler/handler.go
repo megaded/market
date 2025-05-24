@@ -36,7 +36,7 @@ func CreateHandlers(s storage.Storager, m manager.OrderManager) Handler {
 
 func (h *Handler) Register() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var user dto.UserDto
+		var user dto.User
 		err := json.NewDecoder(r.Body).Decode(&user)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -71,7 +71,7 @@ func (h *Handler) Register() func(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Login() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var user dto.UserDto
+		var user dto.User
 		err := json.NewDecoder(r.Body).Decode(&user)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
