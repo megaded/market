@@ -10,3 +10,8 @@ type Accrual struct {
 	Status  string
 	Accrual int
 }
+
+type Withdraw struct {
+	Order string `json:"order"`
+	Sum   int    `json:"sum"`
+}

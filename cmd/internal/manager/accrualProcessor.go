@@ -41,7 +41,7 @@ func (p *AccrualProcessor) Run(ctx context.Context, interval int, workerCount in
 }
 
 func (p *AccrualProcessor) processPendingOrders(ctx context.Context, workerCount int) {
-	orders, err := p.storage.GetProcessingOrders()
+	orders, err := p.storage.GetProcessingOrders(ctx)
 	if err != nil {
 		if errors.Is(err, internal_error.ErrOrderNotFound) {
 			logger.Log.Info("no pending orders found")
@@ -106,7 +106,7 @@ func (p *AccrualProcessor) processOrder(ctx context.Context, order storage.Order
 		newAccrual = response.Response.Accrual
 	}
 
-	if err := p.orderManager.UpdateOrder(order.Number, response.Response.Status, newAccrual); err != nil {
+	if err := p.orderManager.AccrualOrder(ctx, order.Number, response.Response.Status, newAccrual); err != nil {
 		logger.Log.Info("failed to update order accrual", zap.String("order_number", order.Number), zap.Error(err))
 		return
 	}

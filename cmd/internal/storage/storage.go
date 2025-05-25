@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 
 	"github.com/megaded/market/cmd/internal/config"
@@ -11,16 +12,17 @@ import (
 )
 
 type Storager interface {
-	GetOrders(userID int64) ([]Order, error)
-	GetOrder(orderNumber string) (Order, error)
-	CreateOrder(userID int64, orderNumber string) (Order, error)
-	GetBalance(userID int64) (Balance, error)
-	CreateUser(login string, hash string) (User, error)
-	GetUser(login string) (User, error)
-	GetProcessingOrders() ([]Order, error)
-	UpdateOrder(number string, status string, accrual int) error
-	UpdateBalance(userID int, amount int) error
-	CreateOperation(userID int, orderID int, value int) error
+	GetOrders(ctx context.Context, userID int64) ([]Order, error)
+	GetOrder(ctx context.Context, orderNumber string) (Order, error)
+	CreateOrder(ctx context.Context, userID int64, orderNumber string) (Order, error)
+	GetBalance(ctx context.Context, userID int64) (Balance, error)
+	CreateUser(ctx context.Context, login string, hash string) (User, error)
+	GetUser(ctx context.Context, login string) (User, error)
+	GetProcessingOrders(ctx context.Context) ([]Order, error)
+	UpdateOrder(ctx context.Context, number string, status string, accrual int) error
+	Accrual(ctx context.Context, userID int, orderID int, amount int) error
+	Withdraw(ctx context.Context, userID int, orderID int, amount int) error
+	CreateOperation(ctx context.Context, userID int, orderID int, operationType string, value int) error
 }
 
 type storage struct {
@@ -28,29 +30,58 @@ type storage struct {
 	identity identity.IdentityProvider
 }
 
-func (s *storage) CreateOperation(userID int, orderID int, value int) error {
-	operation := Operation{UserID: uint(userID), OrderID: uint(orderID), Value: int64(value)}
-	r := s.db.Create(&operation)
+func (s *storage) CreateOperation(ctx context.Context, userID int, orderID int, operationType string, value int) error {
+	db := s.db.WithContext(ctx)
+	operation := Operation{UserID: uint(userID), OrderID: uint(orderID), Value: int64(value), OperationType: operationType}
+	r := db.Create(&operation)
 	return r.Error
 }
 
-func (s *storage) UpdateBalance(userID int, amount int) error {
-	if err := s.db.Model(Balance{}).Where("user_id = ?", userID).Select("amount").Updates(map[string]interface{}{"amount": amount}).Error; err != nil {
+func (s *storage) Withdraw(ctx context.Context, userID int, orderID int, amount int) error {
+	db := s.db.WithContext(ctx)
+	db.Begin()
+	defer db.Commit()
+	if err := db.Model(Balance{}).Where("user_id = ?", userID).Select("amount").Updates(map[string]interface{}{"amount": amount}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return internal_error.ErrOrderNotFound
 		}
+		db.Rollback()
 		return err
+	}
+	err := s.CreateOperation(ctx, userID, orderID, string(Withdraw), amount)
+	if err != nil {
+		db.Rollback()
 	}
 	return nil
 }
 
-func (s *storage) CreateOrder(userID int64, orderNumber string) (Order, error) {
-	order := Order{UserID: uint(userID), Number: orderNumber}
-	r := s.db.Create(&order)
+func (s *storage) Accrual(ctx context.Context, userID int, orderID int, amount int) error {
+	db := s.db.WithContext(ctx)
+	db.Begin()
+	defer db.Commit()
+	if err := db.Model(Balance{}).Where("user_id = ?", userID).Select("amount").Updates(map[string]interface{}{"amount": amount}).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return internal_error.ErrOrderNotFound
+		}
+		db.Rollback()
+		return err
+	}
+	err := s.CreateOperation(ctx, userID, orderID, string(Accrual), amount)
+	if err != nil {
+		db.Rollback()
+	}
+	return nil
+}
+
+func (s *storage) CreateOrder(ctx context.Context, userID int64, orderNumber string) (Order, error) {
+	db := s.db.WithContext(ctx)
+	order := Order{UserID: uint(userID), Number: orderNumber, Status: OrderStatusNew}
+	r := db.Create(&order)
 	return order, r.Error
 }
-func (s *storage) UpdateOrder(number string, status string, accrual int) error {
-	if err := s.db.Model(Order{}).Where("number = ?", number).Select("status", "accrual").Updates(map[string]interface{}{"status": status, "accrual": accrual}).Error; err != nil {
+func (s *storage) UpdateOrder(ctx context.Context, number string, status string, accrual int) error {
+	db := s.db.WithContext(ctx)
+	if err := db.Model(Order{}).Where("number = ?", number).Select("status", "accrual").Updates(map[string]interface{}{"status": status, "accrual": accrual}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return internal_error.ErrOrderNotFound
 		}
@@ -59,9 +90,10 @@ func (s *storage) UpdateOrder(number string, status string, accrual int) error {
 	return nil
 }
 
-func (s *storage) GetProcessingOrders() ([]Order, error) {
+func (s *storage) GetProcessingOrders(ctx context.Context) ([]Order, error) {
+	db := s.db.WithContext(ctx)
 	var orders []Order
-	result := s.db.Where("status = ? or status = ?", OrderStatusNew, OrderStatusProcessing).Find(&orders)
+	result := db.Where("status = ? or status = ?", OrderStatusNew, OrderStatusProcessing).Find(&orders)
 	switch {
 	case errors.Is(result.Error, gorm.ErrRecordNotFound):
 		return orders, internal_error.ErrOrderNotFound
@@ -70,9 +102,10 @@ func (s *storage) GetProcessingOrders() ([]Order, error) {
 	}
 }
 
-func (s *storage) GetOrders(userID int64) ([]Order, error) {
+func (s *storage) GetOrders(ctx context.Context, userID int64) ([]Order, error) {
+	db := s.db.WithContext(ctx)
 	var orders []Order
-	result := s.db.Where("user_id = ?", userID).Find(&orders)
+	result := db.Where("user_id = ?", userID).Find(&orders)
 	switch {
 	case errors.Is(result.Error, gorm.ErrRecordNotFound):
 		return orders, internal_error.ErrOrderNotFound
@@ -81,9 +114,10 @@ func (s *storage) GetOrders(userID int64) ([]Order, error) {
 	}
 }
 
-func (s *storage) GetOrder(orderNumber string) (Order, error) {
+func (s *storage) GetOrder(ctx context.Context, orderNumber string) (Order, error) {
+	db := s.db.WithContext(ctx)
 	var order Order
-	result := s.db.Where("number = ?", orderNumber).First(&order)
+	result := db.Where("number = ?", orderNumber).First(&order)
 	switch {
 	case errors.Is(result.Error, gorm.ErrRecordNotFound):
 		return order, internal_error.ErrOrderNotFound
@@ -92,9 +126,10 @@ func (s *storage) GetOrder(orderNumber string) (Order, error) {
 	}
 }
 
-func (s *storage) GetUser(login string) (User, error) {
+func (s *storage) GetUser(ctx context.Context, login string) (User, error) {
+	db := s.db.WithContext(ctx)
 	var user User
-	result := s.db.Where("name = ?", login).First(&user)
+	result := db.Where("name = ?", login).First(&user)
 	switch {
 	case errors.Is(result.Error, gorm.ErrRecordNotFound):
 		return user, internal_error.ErrUserNotFound
@@ -103,22 +138,33 @@ func (s *storage) GetUser(login string) (User, error) {
 	}
 }
 
-func (s *storage) CreateUser(login string, password string) (User, error) {
+func (s *storage) CreateUser(ctx context.Context, login string, password string) (User, error) {
+	db := s.db.WithContext(ctx)
 	if login == "" || password == "" {
 		return User{}, internal_error.ErrEmptyLoginOrPassword
 	}
 	var user User
-	result := s.db.Where("name = ?", login).First(&user)
+	result := db.Where("name = ?", login).First(&user)
 	switch {
 	case result.Error == nil:
 		return User{}, internal_error.ErrUserAlreadyExists
 	case errors.Is(result.Error, gorm.ErrRecordNotFound):
-		r := s.db.Create(&User{Name: login, Hash: s.identity.HashPassword(password)})
+		newUser := User{
+			Name: login, Hash: s.identity.HashPassword(password),
+		}
+		db.Begin()
+		defer s.db.Commit()
+		r := db.Create(&newUser)
 		if r.Error != nil {
+			s.db.Rollback()
 			return user, r.Error
 		}
-		balance := Balance{UserID: user.ID}
-		r = s.db.Create(&balance)
+		balance := Balance{UserID: newUser.ID}
+		r = db.Create(&balance)
+		if r.Error != nil {
+			db.Rollback()
+		}
+		user = newUser
 		return user, r.Error
 	default:
 		return User{}, result.Error
@@ -126,9 +172,10 @@ func (s *storage) CreateUser(login string, password string) (User, error) {
 	}
 }
 
-func (s *storage) GetBalance(userId int64) (Balance, error) {
+func (s *storage) GetBalance(ctx context.Context, userId int64) (Balance, error) {
+	db := s.db.WithContext(ctx)
 	var balance Balance
-	result := s.db.Where("user_id = ?", userId).First(&balance)
+	result := db.Where("user_id = ?", userId).First(&balance)
 	return balance, result.Error
 }
 

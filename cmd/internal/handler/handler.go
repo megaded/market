@@ -44,7 +44,7 @@ func (h *Handler) Register() func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(err.Error()))
 			return
 		}
-		newUser, err := h.Storage.CreateUser(user.Login, user.Password)
+		newUser, err := h.Storage.CreateUser(r.Context(), user.Login, user.Password)
 		if err != nil {
 			switch {
 			case errors.Is(err, internal_error.ErrUserAlreadyExists):
@@ -83,7 +83,7 @@ func (h *Handler) Login() func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		userInfo, err := h.Storage.GetUser(user.Login)
+		userInfo, err := h.Storage.GetUser(r.Context(), user.Login)
 		switch {
 		case err == nil:
 			valResult := h.Identity.VerifyPassword(userInfo.Hash, user.Password)
@@ -140,7 +140,7 @@ func (h *Handler) LoadOrder() func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err = h.OrderManager.AddOrder(int64(userID), string(orderNumber)); err != nil {
+		if err = h.OrderManager.AddOrder(r.Context(), int64(userID), string(orderNumber)); err != nil {
 			switch {
 			case errors.Is(err, internal_error.ErrInvalidOrderNumber):
 				logger.Log.Info(string(orderNumber))
@@ -176,7 +176,7 @@ func (h *Handler) Orders() func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		orders, err := h.Storage.GetOrders(int64(userID))
+		orders, err := h.Storage.GetOrders(r.Context(), int64(userID))
 		if err != nil {
 			switch {
 			case errors.Is(err, internal_error.ErrOrderNotFound):
@@ -206,7 +206,7 @@ func (h *Handler) Balance() func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		balance, err := h.Storage.GetBalance(int64(userID))
+		balance, err := h.Storage.GetBalance(r.Context(), int64(userID))
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			logger.Log.Info("internal error", zap.Error(err))
@@ -224,7 +224,40 @@ func (h *Handler) Balance() func(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Withdraw() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, err := getUserID(r)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		var withDraw dto.Withdraw
+		err = json.NewDecoder(r.Body).Decode(&withDraw)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			logger.Log.Info(err.Error())
+			w.Write([]byte(err.Error()))
+			return
+		}
+		err = h.OrderManager.WithdrawOrder(r.Context(), userID, withDraw.Order, withDraw.Sum)
+		if err != nil {
+			switch {
+			case errors.Is(err, internal_error.ErrInvalidWithdrawSum):
+				logger.Log.Info(err.Error())
+				w.Write([]byte(err.Error()))
+				w.WriteHeader(http.StatusPaymentRequired)
+				return
+			case errors.Is(err, internal_error.ErrInvalidOrderNumber):
+				logger.Log.Info(err.Error())
+				w.Write([]byte(err.Error()))
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				return
+			default:
+				logger.Log.Info(err.Error())
+				w.Write([]byte(err.Error()))
+				w.WriteHeader(http.StatusInternalServerError)
+			}
 
+		}
+		w.WriteHeader(http.StatusOK)
 	}
 }
 

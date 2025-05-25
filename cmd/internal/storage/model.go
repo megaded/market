@@ -3,6 +3,12 @@ package storage
 import "gorm.io/gorm"
 
 type OrderStatus string
+type OperationType string
+
+const (
+	Accrual  OperationType = "Accrual"
+	Withdraw OperationType = "Withdraw"
+)
 
 const (
 	OrderStatusNew        OrderStatus = "NEW"
@@ -37,9 +43,10 @@ type Balance struct {
 
 type Operation struct {
 	gorm.Model
-	UserID  uint
-	User    User
-	OrderID uint
-	Order   Order
-	Value   int64
+	UserID        uint
+	User          User
+	OrderID       uint
+	Order         Order
+	OperationType string
+	Value         int64
 }
