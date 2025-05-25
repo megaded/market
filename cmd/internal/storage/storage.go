@@ -118,7 +118,7 @@ func (s *storage) CreateUser(login string, password string) (User, error) {
 			return user, r.Error
 		}
 		balance := Balance{UserID: user.ID}
-		r = s.db.Create(balance)
+		r = s.db.Create(&balance)
 		return user, r.Error
 	default:
 		return User{}, result.Error
