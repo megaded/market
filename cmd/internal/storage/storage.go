@@ -208,9 +208,9 @@ func NewStorage(c *config.Config) Storager {
 		logger.Log.Fatal(err.Error())
 	}
 
-	db.AutoMigrate(&User{})
+	/*db.AutoMigrate(&User{})
 	db.AutoMigrate(&Order{})
 	db.AutoMigrate(&Balance{})
-	db.AutoMigrate(&Operation{})
+	db.AutoMigrate(&Operation{})*/
 	return &storage{db: db}
 }
