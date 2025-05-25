@@ -36,7 +36,7 @@ func (m *OrderManager) AddOrder(ctx context.Context, userID int64, orderNumber s
 	return nil
 }
 
-func (m *OrderManager) AccrualOrder(ctx context.Context, number string, status string, accrual int) error {
+func (m *OrderManager) AccrualOrder(ctx context.Context, number string, status string, accrual float64) error {
 	if err := m.storage.UpdateOrder(ctx, number, status, accrual); err != nil {
 		return err
 	}
@@ -48,12 +48,12 @@ func (m *OrderManager) AccrualOrder(ctx context.Context, number string, status s
 	return err
 }
 
-func (m *OrderManager) WithdrawOrder(ctx context.Context, userID int, number string, withdraw int) error {
+func (m *OrderManager) WithdrawOrder(ctx context.Context, userID int, number string, withdraw float64) error {
 	balance, err := m.storage.GetBalance(ctx, int64(userID))
 	if err != nil {
 		return err
 	}
-	if balance.Balance > int64(withdraw) {
+	if balance.Balance > withdraw {
 		return internal_error.ErrInvalidWithdrawSum
 	}
 	order, err := m.storage.GetOrder(ctx, number)

@@ -8,10 +8,15 @@ type User struct {
 type Accrual struct {
 	Order   string
 	Status  string
-	Accrual int
+	Accrual float64
 }
 
 type Withdraw struct {
-	Order string `json:"order"`
-	Sum   int    `json:"sum"`
+	Order string  `json:"order"`
+	Sum   float64 `json:"sum"`
+}
+
+type Balance struct {
+	Current  float64 `json:"current"`
+	Withdraw float64 `json:"withdraw"`
 }

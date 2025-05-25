@@ -101,7 +101,7 @@ func (p *AccrualProcessor) processOrder(ctx context.Context, order storage.Order
 		}
 	}
 
-	var newAccrual int
+	var newAccrual float64
 	if response.Response.Status == string(storage.OrderStatusProcessed) {
 		newAccrual = response.Response.Accrual
 	}

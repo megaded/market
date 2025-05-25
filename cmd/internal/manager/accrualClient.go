@@ -13,7 +13,7 @@ import (
 
 type AccrualClient struct {
 	client  *http.Client
-	baseUrl string
+	baseURL string
 }
 
 type AccrualInfo struct {
@@ -22,13 +22,13 @@ type AccrualInfo struct {
 	Error    error
 }
 
-func CreateAccrualClient(baseUrl string) AccrualClient {
-	return AccrualClient{baseUrl: baseUrl, client: &http.Client{}}
+func CreateAccrualClient(baseURL string) AccrualClient {
+	return AccrualClient{baseURL: baseURL, client: &http.Client{}}
 }
 
 func (c *AccrualClient) GetOrderStatus(ctx context.Context, orderNumber string) AccrualInfo {
 	accrualResponse := AccrualInfo{}
-	path, err := url.JoinPath(c.baseUrl, "api", "orders", orderNumber)
+	path, err := url.JoinPath(c.baseURL, "api", "orders", orderNumber)
 	if err != nil {
 		accrualResponse.Error = err
 		return accrualResponse

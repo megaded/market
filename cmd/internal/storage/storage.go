@@ -19,10 +19,10 @@ type Storager interface {
 	CreateUser(ctx context.Context, login string, hash string) (User, error)
 	GetUser(ctx context.Context, login string) (User, error)
 	GetProcessingOrders(ctx context.Context) ([]Order, error)
-	UpdateOrder(ctx context.Context, number string, status string, accrual int) error
-	Accrual(ctx context.Context, userID int, orderID int, amount int) error
-	Withdraw(ctx context.Context, userID int, orderID int, amount int) error
-	CreateOperation(ctx context.Context, userID int, orderID int, operationType string, value int) error
+	UpdateOrder(ctx context.Context, number string, status string, accrual float64) error
+	Accrual(ctx context.Context, userID int, orderID int, amount float64) error
+	Withdraw(ctx context.Context, userID int, orderID int, amount float64) error
+	CreateOperation(ctx context.Context, userID int, orderID int, operationType string, value float64) error
 }
 
 type storage struct {
@@ -30,13 +30,13 @@ type storage struct {
 	identity identity.IdentityProvider
 }
 
-func (s *storage) CreateOperation(ctx context.Context, userID int, orderID int, operationType string, value int) error {
-	operation := Operation{UserID: uint(userID), OrderID: uint(orderID), Value: int64(value), OperationType: operationType}
+func (s *storage) CreateOperation(ctx context.Context, userID int, orderID int, operationType string, value float64) error {
+	operation := Operation{UserID: uint(userID), OrderID: uint(orderID), Value: value, OperationType: operationType}
 	r := s.db.WithContext(ctx).Create(&operation)
 	return r.Error
 }
 
-func (s *storage) Withdraw(ctx context.Context, userID int, orderID int, amount int) error {
+func (s *storage) Withdraw(ctx context.Context, userID int, orderID int, amount float64) error {
 	db := s.db.WithContext(ctx)
 	db.Begin()
 	defer db.Commit()
@@ -54,7 +54,7 @@ func (s *storage) Withdraw(ctx context.Context, userID int, orderID int, amount 
 	return nil
 }
 
-func (s *storage) Accrual(ctx context.Context, userID int, orderID int, amount int) error {
+func (s *storage) Accrual(ctx context.Context, userID int, orderID int, amount float64) error {
 	db := s.db.WithContext(ctx)
 	db.Begin()
 	defer db.Commit()
@@ -77,7 +77,7 @@ func (s *storage) CreateOrder(ctx context.Context, userID int64, orderNumber str
 	r := s.db.WithContext(ctx).Create(&order)
 	return order, r.Error
 }
-func (s *storage) UpdateOrder(ctx context.Context, number string, status string, accrual int) error {
+func (s *storage) UpdateOrder(ctx context.Context, number string, status string, accrual float64) error {
 	if err := s.db.WithContext(ctx).Model(Order{}).Where("number = ?", number).Select("status", "accrual").Updates(map[string]interface{}{"status": status, "accrual": accrual}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return internal_error.ErrOrderNotFound
@@ -164,9 +164,9 @@ func (s *storage) CreateUser(ctx context.Context, login string, password string)
 	}
 }
 
-func (s *storage) GetBalance(ctx context.Context, userId int64) (Balance, error) {
+func (s *storage) GetBalance(ctx context.Context, userID int64) (Balance, error) {
 	var balance Balance
-	result := s.db.WithContext(ctx).Where("user_id = ?", userId).First(&balance)
+	result := s.db.WithContext(ctx).Where("user_id = ?", userID).First(&balance)
 	return balance, result.Error
 }
 
