@@ -56,6 +56,6 @@ func (o Order) MarshalJSON() ([]byte, error) {
 }
 
 type Balance struct {
-	Current  float64 `json:"current"`
-	Withdraw float64 `json:"withdraw"`
+	Current   float64 `json:"current"`
+	Withdrawn float64 `json:"withdrawn"`
 }

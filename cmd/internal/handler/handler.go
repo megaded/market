@@ -215,7 +215,7 @@ func (h *Handler) Balance() func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		if err = json.NewEncoder(w).Encode(dto.Balance{Current: balance.Balance, Withdraw: balance.Withdrawn}); err != nil {
+		if err = json.NewEncoder(w).Encode(dto.Balance{Current: balance.Balance, Withdrawn: balance.Withdrawn}); err != nil {
 			w.Write([]byte(err.Error()))
 			w.WriteHeader(http.StatusInternalServerError)
 			logger.Log.Info("failed to encode balance", zap.Error(err))

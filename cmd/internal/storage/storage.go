@@ -63,7 +63,8 @@ func (s *storage) Withdraw(ctx context.Context, userID int, orderNumber string, 
 	if r.Error != nil {
 		return r.Error
 	}
-	if err := db.Model(Balance{}).Where("user_id = ?", userID).Select("balance", "withdrawn").Updates(map[string]interface{}{"balance": balance.Balance - amount, "withdrawn": balance.Withdrawn + amount}).Error; err != nil {
+	newBalance := math.Round(balance.Balance+amount*100) / 100
+	if err := db.Model(Balance{}).Where("user_id = ?", userID).Select("balance", "withdrawn").Updates(map[string]interface{}{"balance": newBalance, "withdrawn": balance.Withdrawn + amount}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return internal_error.ErrOrderNotFound
 		}
@@ -78,7 +79,6 @@ func (s *storage) Withdraw(ctx context.Context, userID int, orderNumber string, 
 }
 
 func (s *storage) Accrual(ctx context.Context, userID int, orderNumber string, amount float64) error {
-	amount = math.Round(amount*100) / 100
 	db := s.db.WithContext(ctx)
 	defer db.Commit()
 	var balance Balance
@@ -89,7 +89,8 @@ func (s *storage) Accrual(ctx context.Context, userID int, orderNumber string, a
 		}
 		return r.Error
 	}
-	r = db.Model(Balance{}).Where("user_id = ?", userID).Select("balance").Updates(map[string]interface{}{"balance": balance.Balance + amount})
+	newBalance := math.Round(balance.Balance+amount*100) / 100
+	r = db.Model(Balance{}).Where("user_id = ?", userID).Select("balance").Updates(map[string]interface{}{"balance": newBalance})
 	if r.Error != nil {
 		return r.Error
 	}
@@ -207,9 +208,9 @@ func NewStorage(c *config.Config) Storager {
 		logger.Log.Fatal(err.Error())
 	}
 
-	/*db.AutoMigrate(&User{})
+	db.AutoMigrate(&User{})
 	db.AutoMigrate(&Order{})
 	db.AutoMigrate(&Balance{})
-	db.AutoMigrate(&Operation{})*/
+	db.AutoMigrate(&Operation{})
 	return &storage{db: db}
 }
