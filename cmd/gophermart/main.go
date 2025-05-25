@@ -48,7 +48,7 @@ func migrate(db *sql.DB) error {
 	if err := goose.SetDialect("postgres"); err != nil {
 		return nil
 	}
-	if err := goose.Up(db, "./migrations"); err != nil {
+	if err := goose.Up(db, "migrations"); err != nil {
 		return err
 	}
 
