@@ -63,7 +63,7 @@ func (s *storage) Withdraw(ctx context.Context, userID int, orderNumber string, 
 	if r.Error != nil {
 		return r.Error
 	}
-	newBalance := math.Round(balance.Balance+amount*100) / 100
+	newBalance := math.Round(balance.Balance-amount*100) / 100
 	if err := db.Model(Balance{}).Where("user_id = ?", userID).Select("balance", "withdrawn").Updates(map[string]interface{}{"balance": newBalance, "withdrawn": balance.Withdrawn + amount}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return internal_error.ErrOrderNotFound
