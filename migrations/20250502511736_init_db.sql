@@ -29,7 +29,7 @@ CREATE TABLE operations (
 	updated_at timestamptz NULL,
 	deleted_at timestamptz NULL,
 	user_id int8 NULL,
-	order_id int8 NULL,
+	"order" text NULL,
 	value numeric NULL,
 	operation_type text NULL,
 	CONSTRAINT fk_users_operation FOREIGN KEY (user_id) REFERENCES public.users(id)

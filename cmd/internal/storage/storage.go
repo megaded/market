@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"math"
 
@@ -10,7 +9,6 @@ import (
 	internal_error "github.com/megaded/market/cmd/internal/error"
 	"github.com/megaded/market/cmd/internal/identity"
 	"github.com/megaded/market/cmd/internal/logger"
-	"github.com/pressly/goose"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -24,9 +22,9 @@ type Storager interface {
 	GetUser(ctx context.Context, login string) (User, error)
 	GetProcessingOrders(ctx context.Context) ([]Order, error)
 	UpdateOrder(ctx context.Context, number string, status string, accrual float64) error
-	Accrual(ctx context.Context, userID int, orderID int, amount float64) error
-	Withdraw(ctx context.Context, userID int, amount float64) error
-	CreateOperation(ctx context.Context, userID int, orderID int, operationType string, value float64) error
+	Accrual(ctx context.Context, userID int, orderNumber string, amount float64) error
+	Withdraw(ctx context.Context, userID int, orderNumber string, amount float64) error
+	CreateOperation(ctx context.Context, userID int, orderNumber string, operationType string, value float64) error
 	GetOperations(ctx context.Context, userID int, operationType string) ([]Operation, error)
 }
 
@@ -37,7 +35,7 @@ type storage struct {
 
 func (s *storage) GetOperations(ctx context.Context, userID int, operationType string) ([]Operation, error) {
 	var operations []Operation
-	result := s.db.WithContext(ctx).Model(&Operation{}).Preload("Order").Where("user_id = ? AND operation_type = ?", userID, operationType).Find(&operations)
+	result := s.db.WithContext(ctx).Model(&Operation{}).Where("user_id = ? AND operation_type = ?", userID, operationType).Find(&operations)
 	switch {
 	case len(operations) == 0:
 		return operations, internal_error.ErrWithdrawalNotFound
@@ -49,13 +47,13 @@ func (s *storage) GetOperations(ctx context.Context, userID int, operationType s
 	}
 }
 
-func (s *storage) CreateOperation(ctx context.Context, userID int, orderID int, operationType string, value float64) error {
-	operation := Operation{UserID: uint(userID), OrderID: uint(orderID), Value: value, OperationType: operationType}
+func (s *storage) CreateOperation(ctx context.Context, userID int, orderNumber string, operationType string, value float64) error {
+	operation := Operation{UserID: uint(userID), Order: orderNumber, Value: value, OperationType: operationType}
 	r := s.db.WithContext(ctx).Create(&operation)
 	return r.Error
 }
 
-func (s *storage) Withdraw(ctx context.Context, userID int, amount float64) error {
+func (s *storage) Withdraw(ctx context.Context, userID int, orderNumber string, amount float64) error {
 	amount = math.Round(amount*100) / 100
 	db := s.db.WithContext(ctx)
 	db.Begin()
@@ -72,14 +70,14 @@ func (s *storage) Withdraw(ctx context.Context, userID int, amount float64) erro
 		db.Rollback()
 		return err
 	}
-	err := s.CreateOperation(ctx, userID, 0, string(Withdraw), amount)
+	err := s.CreateOperation(ctx, userID, orderNumber, string(Withdraw), amount)
 	if err != nil {
 		db.Rollback()
 	}
 	return nil
 }
 
-func (s *storage) Accrual(ctx context.Context, userID int, orderID int, amount float64) error {
+func (s *storage) Accrual(ctx context.Context, userID int, orderNumber string, amount float64) error {
 	amount = math.Round(amount*100) / 100
 	db := s.db.WithContext(ctx)
 	defer db.Commit()
@@ -95,7 +93,7 @@ func (s *storage) Accrual(ctx context.Context, userID int, orderID int, amount f
 	if r.Error != nil {
 		return r.Error
 	}
-	err := s.CreateOperation(ctx, userID, 0, string(Accrual), amount)
+	err := s.CreateOperation(ctx, userID, orderNumber, string(Accrual), amount)
 	if err != nil {
 		db.Rollback()
 	}
@@ -212,17 +210,6 @@ func NewStorage(c *config.Config) Storager {
 	/*db.AutoMigrate(&User{})
 	db.AutoMigrate(&Order{})
 	db.AutoMigrate(&Balance{})
-	db.AutoMigrate(&Operation{}) */
+	db.AutoMigrate(&Operation{})*/
 	return &storage{db: db}
-}
-
-func migrate(db *sql.DB) error {
-	if err := goose.SetDialect("postgres"); err != nil {
-		return nil
-	}
-	if err := goose.Up(db, "migrations"); err != nil {
-		return err
-	}
-
-	return nil
 }

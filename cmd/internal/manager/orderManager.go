@@ -47,7 +47,7 @@ func (m *OrderManager) AccrualOrder(ctx context.Context, number string, status s
 	if err != nil {
 		return err
 	}
-	err = m.storage.Accrual(ctx, int(order.UserID), int(order.ID), accrual)
+	err = m.storage.Accrual(ctx, int(order.UserID), number, accrual)
 	return err
 }
 
@@ -60,7 +60,7 @@ func (m *OrderManager) WithdrawOrder(ctx context.Context, userID int, number str
 		return internal_error.ErrInvalidWithdrawSum
 	}
 
-	err = m.storage.Withdraw(ctx, userID, withdraw)
+	err = m.storage.Withdraw(ctx, userID, number, withdraw)
 	return err
 }
 
