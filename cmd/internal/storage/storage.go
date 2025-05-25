@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"math"
 
 	"github.com/megaded/market/cmd/internal/config"
 	internal_error "github.com/megaded/market/cmd/internal/error"
@@ -55,6 +56,7 @@ func (s *storage) CreateOperation(ctx context.Context, userID int, orderID int, 
 }
 
 func (s *storage) Withdraw(ctx context.Context, userID int, amount float64) error {
+	amount = math.Round(amount*100) / 100
 	db := s.db.WithContext(ctx)
 	db.Begin()
 	defer db.Commit()
@@ -78,6 +80,7 @@ func (s *storage) Withdraw(ctx context.Context, userID int, amount float64) erro
 }
 
 func (s *storage) Accrual(ctx context.Context, userID int, orderID int, amount float64) error {
+	amount = math.Round(amount*100) / 100
 	db := s.db.WithContext(ctx)
 	defer db.Commit()
 	var balance Balance
