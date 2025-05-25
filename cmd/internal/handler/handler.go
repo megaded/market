@@ -273,7 +273,7 @@ func (h *Handler) Withdrawals() func(w http.ResponseWriter, r *http.Request) {
 		operations, err := h.Storage.GetOperations(r.Context(), userID, string(storage.Withdraw))
 		if err != nil {
 			switch {
-			case errors.Is(err, internal_error.ErrOrderNotFound):
+			case errors.Is(err, internal_error.ErrWithdrawalNotFound):
 				w.WriteHeader(http.StatusNoContent)
 				logger.Log.Info(" Withdrawal not found", zap.Error(err))
 				return
