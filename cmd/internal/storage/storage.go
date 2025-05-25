@@ -31,9 +31,8 @@ type storage struct {
 }
 
 func (s *storage) CreateOperation(ctx context.Context, userID int, orderID int, operationType string, value int) error {
-	db := s.db.WithContext(ctx)
 	operation := Operation{UserID: uint(userID), OrderID: uint(orderID), Value: int64(value), OperationType: operationType}
-	r := db.Create(&operation)
+	r := s.db.WithContext(ctx).Create(&operation)
 	return r.Error
 }
 
@@ -74,14 +73,12 @@ func (s *storage) Accrual(ctx context.Context, userID int, orderID int, amount i
 }
 
 func (s *storage) CreateOrder(ctx context.Context, userID int64, orderNumber string) (Order, error) {
-	db := s.db.WithContext(ctx)
 	order := Order{UserID: uint(userID), Number: orderNumber, Status: OrderStatusNew}
-	r := db.Create(&order)
+	r := s.db.WithContext(ctx).Create(&order)
 	return order, r.Error
 }
 func (s *storage) UpdateOrder(ctx context.Context, number string, status string, accrual int) error {
-	db := s.db.WithContext(ctx)
-	if err := db.Model(Order{}).Where("number = ?", number).Select("status", "accrual").Updates(map[string]interface{}{"status": status, "accrual": accrual}).Error; err != nil {
+	if err := s.db.WithContext(ctx).Model(Order{}).Where("number = ?", number).Select("status", "accrual").Updates(map[string]interface{}{"status": status, "accrual": accrual}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return internal_error.ErrOrderNotFound
 		}
@@ -91,9 +88,8 @@ func (s *storage) UpdateOrder(ctx context.Context, number string, status string,
 }
 
 func (s *storage) GetProcessingOrders(ctx context.Context) ([]Order, error) {
-	db := s.db.WithContext(ctx)
 	var orders []Order
-	result := db.Where("status = ? or status = ?", OrderStatusNew, OrderStatusProcessing).Find(&orders)
+	result := s.db.WithContext(ctx).Where("status = ? or status = ?", OrderStatusNew, OrderStatusProcessing).Find(&orders)
 	switch {
 	case errors.Is(result.Error, gorm.ErrRecordNotFound):
 		return orders, internal_error.ErrOrderNotFound
@@ -103,9 +99,8 @@ func (s *storage) GetProcessingOrders(ctx context.Context) ([]Order, error) {
 }
 
 func (s *storage) GetOrders(ctx context.Context, userID int64) ([]Order, error) {
-	db := s.db.WithContext(ctx)
 	var orders []Order
-	result := db.Where("user_id = ?", userID).Find(&orders)
+	result := s.db.WithContext(ctx).Where("user_id = ?", userID).Find(&orders)
 	switch {
 	case errors.Is(result.Error, gorm.ErrRecordNotFound):
 		return orders, internal_error.ErrOrderNotFound
@@ -115,9 +110,8 @@ func (s *storage) GetOrders(ctx context.Context, userID int64) ([]Order, error) 
 }
 
 func (s *storage) GetOrder(ctx context.Context, orderNumber string) (Order, error) {
-	db := s.db.WithContext(ctx)
 	var order Order
-	result := db.Where("number = ?", orderNumber).First(&order)
+	result := s.db.WithContext(ctx).Where("number = ?", orderNumber).First(&order)
 	switch {
 	case errors.Is(result.Error, gorm.ErrRecordNotFound):
 		return order, internal_error.ErrOrderNotFound
@@ -127,9 +121,8 @@ func (s *storage) GetOrder(ctx context.Context, orderNumber string) (Order, erro
 }
 
 func (s *storage) GetUser(ctx context.Context, login string) (User, error) {
-	db := s.db.WithContext(ctx)
 	var user User
-	result := db.Where("name = ?", login).First(&user)
+	result := s.db.WithContext(ctx).Where("name = ?", login).First(&user)
 	switch {
 	case errors.Is(result.Error, gorm.ErrRecordNotFound):
 		return user, internal_error.ErrUserNotFound
@@ -140,6 +133,7 @@ func (s *storage) GetUser(ctx context.Context, login string) (User, error) {
 
 func (s *storage) CreateUser(ctx context.Context, login string, password string) (User, error) {
 	db := s.db.WithContext(ctx)
+	defer db.Commit()
 	if login == "" || password == "" {
 		return User{}, internal_error.ErrEmptyLoginOrPassword
 	}
@@ -152,11 +146,9 @@ func (s *storage) CreateUser(ctx context.Context, login string, password string)
 		newUser := User{
 			Name: login, Hash: s.identity.HashPassword(password),
 		}
-		db.Begin()
-		defer s.db.Commit()
 		r := db.Create(&newUser)
 		if r.Error != nil {
-			s.db.Rollback()
+			db.Rollback()
 			return user, r.Error
 		}
 		balance := Balance{UserID: newUser.ID}
@@ -173,9 +165,8 @@ func (s *storage) CreateUser(ctx context.Context, login string, password string)
 }
 
 func (s *storage) GetBalance(ctx context.Context, userId int64) (Balance, error) {
-	db := s.db.WithContext(ctx)
 	var balance Balance
-	result := db.Where("user_id = ?", userId).First(&balance)
+	result := s.db.WithContext(ctx).Where("user_id = ?", userId).First(&balance)
 	return balance, result.Error
 }
 
