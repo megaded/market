@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	internal_error "github.com/megaded/market/cmd/internal/error"
-	"github.com/megaded/market/cmd/internal/storage"
+	internal_error "github.com/megaded/market/internal/error"
+	"github.com/megaded/market/internal/storage"
 )
 
 type OrderManager struct {

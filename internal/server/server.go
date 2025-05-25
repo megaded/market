@@ -4,11 +4,11 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/megaded/market/cmd/internal/config"
-	"github.com/megaded/market/cmd/internal/handler"
-	"github.com/megaded/market/cmd/internal/manager"
-	"github.com/megaded/market/cmd/internal/router"
-	"github.com/megaded/market/cmd/internal/storage"
+	"github.com/megaded/market/internal/config"
+	"github.com/megaded/market/internal/handler"
+	"github.com/megaded/market/internal/manager"
+	"github.com/megaded/market/internal/router"
+	"github.com/megaded/market/internal/storage"
 )
 
 type Server struct {

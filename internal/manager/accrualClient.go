@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/megaded/market/cmd/internal/dto"
-	"github.com/megaded/market/cmd/internal/logger"
+	"github.com/megaded/market/internal/dto"
+	"github.com/megaded/market/internal/logger"
 	"go.uber.org/zap"
 )
 

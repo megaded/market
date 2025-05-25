@@ -8,11 +8,11 @@ import (
 	"syscall"
 
 	_ "github.com/lib/pq"
-	"github.com/megaded/market/cmd/internal/config"
-	"github.com/megaded/market/cmd/internal/logger"
-	"github.com/megaded/market/cmd/internal/manager"
-	"github.com/megaded/market/cmd/internal/server"
-	"github.com/megaded/market/cmd/internal/storage"
+	"github.com/megaded/market/internal/config"
+	"github.com/megaded/market/internal/logger"
+	"github.com/megaded/market/internal/manager"
+	"github.com/megaded/market/internal/server"
+	"github.com/megaded/market/internal/storage"
 	"github.com/pressly/goose"
 	"go.uber.org/zap"
 )

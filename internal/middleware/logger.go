@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/megaded/market/cmd/internal/logger"
+	"github.com/megaded/market/internal/logger"
 	"go.uber.org/zap"
 )
 

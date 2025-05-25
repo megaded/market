@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	internal_error "github.com/megaded/market/cmd/internal/error"
-	"github.com/megaded/market/cmd/internal/logger"
-	"github.com/megaded/market/cmd/internal/storage"
+	internal_error "github.com/megaded/market/internal/error"
+	"github.com/megaded/market/internal/logger"
+	"github.com/megaded/market/internal/storage"
 	"go.uber.org/zap"
 )
 

@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/megaded/market/cmd/internal/identity"
-	"github.com/megaded/market/cmd/internal/logger"
+	"github.com/megaded/market/internal/identity"
+	"github.com/megaded/market/internal/logger"
 )
 
 func AuthMiddleWare(id identity.IdentityProvider) func(next http.Handler) http.Handler {

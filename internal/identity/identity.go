@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/megaded/market/cmd/internal/config"
-	"github.com/megaded/market/cmd/internal/logger"
+	"github.com/megaded/market/internal/config"
+	"github.com/megaded/market/internal/logger"
 	"go.uber.org/zap"
 )
 

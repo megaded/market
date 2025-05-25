@@ -5,10 +5,10 @@ import (
 	"errors"
 	"math"
 
-	"github.com/megaded/market/cmd/internal/config"
-	internal_error "github.com/megaded/market/cmd/internal/error"
-	"github.com/megaded/market/cmd/internal/identity"
-	"github.com/megaded/market/cmd/internal/logger"
+	"github.com/megaded/market/internal/config"
+	internal_error "github.com/megaded/market/internal/error"
+	"github.com/megaded/market/internal/identity"
+	"github.com/megaded/market/internal/logger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )

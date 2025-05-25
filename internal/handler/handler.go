@@ -7,12 +7,12 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/megaded/market/cmd/internal/dto"
-	internal_error "github.com/megaded/market/cmd/internal/error"
-	"github.com/megaded/market/cmd/internal/identity"
-	"github.com/megaded/market/cmd/internal/logger"
-	"github.com/megaded/market/cmd/internal/manager"
-	"github.com/megaded/market/cmd/internal/storage"
+	"github.com/megaded/market/internal/dto"
+	internal_error "github.com/megaded/market/internal/error"
+	"github.com/megaded/market/internal/identity"
+	"github.com/megaded/market/internal/logger"
+	"github.com/megaded/market/internal/manager"
+	"github.com/megaded/market/internal/storage"
 	"go.uber.org/zap"
 )
 

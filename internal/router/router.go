@@ -5,9 +5,9 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	"github.com/megaded/market/cmd/internal/config"
-	"github.com/megaded/market/cmd/internal/handler"
-	internal_middleware "github.com/megaded/market/cmd/internal/middleware"
+	"github.com/megaded/market/internal/config"
+	"github.com/megaded/market/internal/handler"
+	internal_middleware "github.com/megaded/market/internal/middleware"
 )
 
 func CreateRouter(h handler.Handler, c config.Config) http.Handler {
