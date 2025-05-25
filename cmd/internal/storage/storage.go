@@ -22,8 +22,8 @@ type Storager interface {
 	GetProcessingOrders(ctx context.Context) ([]Order, error)
 	UpdateOrder(ctx context.Context, number string, status string, accrual float64) error
 	Accrual(ctx context.Context, userID int, orderID int, amount float64) error
-	Withdraw(ctx context.Context, userID int, orderID int, amount float64) error
-	CreateOperation(ctx context.Context, userID int, orderID int, operationType string, value float64) error
+	Withdraw(ctx context.Context, userID int, amount float64) error
+	CreateOperation(ctx context.Context, userID int, orderID *int, operationType string, value float64) error
 	GetOperations(ctx context.Context, userID int, operationType string) ([]Operation, error)
 }
 
@@ -36,7 +36,7 @@ func (s *storage) GetOperations(ctx context.Context, userID int, operationType s
 	var operations []Operation
 	result := s.db.WithContext(ctx).Model(&Operation{}).Preload("Order").Where("user_id = ? AND operation_type = ?", userID, operationType).Find(&operations)
 	switch {
-	case errors.Is(result.Error, gorm.ErrRecordNotFound):
+	case len(operations) == 0:
 		return operations, internal_error.ErrWithdrawalNotFound
 	default:
 		if result.Error != nil {
@@ -46,13 +46,14 @@ func (s *storage) GetOperations(ctx context.Context, userID int, operationType s
 	}
 }
 
-func (s *storage) CreateOperation(ctx context.Context, userID int, orderID int, operationType string, value float64) error {
-	operation := Operation{UserID: uint(userID), OrderID: uint(orderID), Value: value, OperationType: operationType}
+func (s *storage) CreateOperation(ctx context.Context, userID int, orderID *int, operationType string, value float64) error {
+	order := uint(*orderID)
+	operation := Operation{UserID: uint(userID), OrderID: &order, Value: value, OperationType: operationType}
 	r := s.db.WithContext(ctx).Create(&operation)
 	return r.Error
 }
 
-func (s *storage) Withdraw(ctx context.Context, userID int, orderID int, amount float64) error {
+func (s *storage) Withdraw(ctx context.Context, userID int, amount float64) error {
 	db := s.db.WithContext(ctx)
 	db.Begin()
 	defer db.Commit()
@@ -68,7 +69,7 @@ func (s *storage) Withdraw(ctx context.Context, userID int, orderID int, amount 
 		db.Rollback()
 		return err
 	}
-	err := s.CreateOperation(ctx, userID, orderID, string(Withdraw), amount)
+	err := s.CreateOperation(ctx, userID, nil, string(Withdraw), amount)
 	if err != nil {
 		db.Rollback()
 	}
@@ -90,7 +91,7 @@ func (s *storage) Accrual(ctx context.Context, userID int, orderID int, amount f
 	if r.Error != nil {
 		return r.Error
 	}
-	err := s.CreateOperation(ctx, userID, orderID, string(Accrual), amount)
+	err := s.CreateOperation(ctx, userID, &orderID, string(Accrual), amount)
 	if err != nil {
 		db.Rollback()
 	}

@@ -45,7 +45,7 @@ type Operation struct {
 	gorm.Model
 	UserID        uint
 	User          User
-	OrderID       uint
+	OrderID       *uint
 	Order         Order
 	OperationType string
 	Value         float64

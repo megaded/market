@@ -59,11 +59,8 @@ func (m *OrderManager) WithdrawOrder(ctx context.Context, userID int, number str
 	if balance.Balance < withdraw {
 		return internal_error.ErrInvalidWithdrawSum
 	}
-	order, err := m.storage.GetOrder(ctx, number)
-	if err != nil {
-		return err
-	}
-	err = m.storage.Withdraw(ctx, int(order.UserID), int(order.ID), withdraw)
+
+	err = m.storage.Withdraw(ctx, userID, withdraw)
 	return err
 }
 
