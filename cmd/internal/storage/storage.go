@@ -57,7 +57,7 @@ func (s *storage) Withdraw(ctx context.Context, userID int, orderID int, amount 
 	if r.Error != nil {
 		return r.Error
 	}
-	if err := db.Model(Balance{}).Where("user_id = ?", userID).Select("amount").Updates(map[string]interface{}{"amount": balance.Balance - amount}).Error; err != nil {
+	if err := db.Model(Balance{}).Where("user_id = ?", userID).Select("balance").Updates(map[string]interface{}{"balance": balance.Balance - amount}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return internal_error.ErrOrderNotFound
 		}
@@ -82,7 +82,7 @@ func (s *storage) Accrual(ctx context.Context, userID int, orderID int, amount f
 		}
 		return r.Error
 	}
-	r = db.Model(Balance{}).Where("user_id = ?", userID).Select("amount").Updates(map[string]interface{}{"amount": balance.Balance + amount})
+	r = db.Model(Balance{}).Where("user_id = ?", userID).Select("balance").Updates(map[string]interface{}{"balance": balance.Balance + amount})
 	if r.Error != nil {
 		return r.Error
 	}

@@ -195,7 +195,7 @@ func (h *Handler) Orders() func(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if err = json.NewEncoder(w).Encode(orders); err != nil {
+		if err = json.NewEncoder(w).Encode(result); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			logger.Log.Info("failed to encode orders", zap.Error(err))
 			return
