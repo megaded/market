@@ -17,8 +17,9 @@ CREATE TABLE balances (
 	updated_at timestamptz NULL,
 	deleted_at timestamptz NULL,
 	user_id int8 NULL,
-	balance int8 NULL,
-	withdrawn int8 NULL,
+	balance numeric(10,2) NULL,
+	withdrawn numeric(10,2) NULL,
+	CONSTRAINT balances_pkey PRIMARY KEY (id),
 	CONSTRAINT fk_balances_user FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
 CREATE INDEX idx_balances_deleted_at ON public.balances (deleted_at timestamptz_ops);
@@ -30,8 +31,9 @@ CREATE TABLE operations (
 	deleted_at timestamptz NULL,
 	user_id int8 NULL,
 	"order" text NULL,
-	value numeric NULL,
+	value numeric(10,2) NULL,
 	operation_type text NULL,
+	CONSTRAINT operations_pkey PRIMARY KEY (id),
 	CONSTRAINT fk_users_operation FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
 CREATE INDEX idx_operations_deleted_at ON public.operations (deleted_at timestamptz_ops);
@@ -45,7 +47,7 @@ CREATE TABLE orders (
 	"name" text NULL,
 	hash text NULL,
 	"number" text NULL,
-	accrual numeric NULL,
+	accrual numeric(10,2) NULL,
 	status text NULL,
 	CONSTRAINT orders_pkey PRIMARY KEY (id)
 );
