@@ -9,6 +9,8 @@ import (
 	"strconv"
 
 	"github.com/megaded/market/cmd/internal/dto"
+	"github.com/megaded/market/cmd/internal/logger"
+	"go.uber.org/zap"
 )
 
 type AccrualClient struct {
@@ -35,12 +37,14 @@ func (c *AccrualClient) GetOrderStatus(ctx context.Context, orderNumber string) 
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, path, nil)
 	if err != nil {
+		logger.Log.Info("Actual server", zap.Error(err))
 		accrualResponse.Error = err
 		return accrualResponse
 	}
 
 	response, err := c.client.Do(request)
 	if err != nil {
+		logger.Log.Info("Actual server", zap.Error(err))
 		accrualResponse.Error = err
 		return accrualResponse
 	}
@@ -48,6 +52,7 @@ func (c *AccrualClient) GetOrderStatus(ctx context.Context, orderNumber string) 
 
 	if response.StatusCode == http.StatusTooManyRequests {
 		retryAfterStr := response.Header.Get("Retry-After")
+		logger.Log.Info("Actual retry-after", zap.String("Retry-After", retryAfterStr))
 		seconds, err := strconv.Atoi(retryAfterStr)
 		if err != nil {
 			accrualResponse.Error = err
@@ -62,12 +67,14 @@ func (c *AccrualClient) GetOrderStatus(ctx context.Context, orderNumber string) 
 	}
 
 	if response.StatusCode != http.StatusOK {
+		logger.Log.Info("Actual server", zap.Error(err))
 		accrualResponse.Error = errors.New("failed to get order info")
 		return accrualResponse
 	}
 
 	var accrualInfo *dto.Accrual
 	if err = json.NewDecoder(response.Body).Decode(&accrualInfo); err != nil {
+		logger.Log.Info("Actual server", zap.Error(err))
 		accrualResponse.Error = err
 		return accrualResponse
 	}

@@ -1,4 +1,4 @@
-package internalError
+package internalerror
 
 import "errors"
 

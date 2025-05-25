@@ -33,7 +33,7 @@ type storage struct {
 
 func (s *storage) GetOperations(ctx context.Context, userID int, operationType string) ([]Operation, error) {
 	var operations []Operation
-	result := s.db.WithContext(ctx).Where("user_id = ? AND operation_type = ?", userID, operationType).Find(&operations)
+	result := s.db.WithContext(ctx).Model(&Operation{}).Preload("Order").Where("user_id = ? AND operation_type = ?", userID, operationType).Find(&operations)
 	switch {
 	case errors.Is(result.Error, gorm.ErrRecordNotFound):
 		return operations, internal_error.ErrWithdrawalNotFound
@@ -57,7 +57,7 @@ func (s *storage) Withdraw(ctx context.Context, userID int, orderID int, amount 
 	if r.Error != nil {
 		return r.Error
 	}
-	if err := db.Model(Balance{}).Where("user_id = ?", userID).Select("balance").Updates(map[string]interface{}{"balance": balance.Balance - amount}).Error; err != nil {
+	if err := db.Model(Balance{}).Where("user_id = ?", userID).Select("balance", "withdrawn").Updates(map[string]interface{}{"balance": balance.Balance - amount, "withdrawn": balance.Withdrawn + amount}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return internal_error.ErrOrderNotFound
 		}
