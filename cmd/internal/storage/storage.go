@@ -3,12 +3,10 @@ package storage
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/megaded/market/cmd/internal/config"
 	internal_error "github.com/megaded/market/cmd/internal/error"
 	"github.com/megaded/market/cmd/internal/identity"
-	"github.com/megaded/market/cmd/internal/logger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -188,10 +186,8 @@ func (s *storage) CreateUser(ctx context.Context, login string, password string)
 }
 
 func (s *storage) GetBalance(ctx context.Context, userID int64) (Balance, error) {
-	logger.Log.Info(fmt.Sprintf("%d", userID))
 	var balance Balance
 	result := s.db.WithContext(ctx).Where("user_id = ?", userID).First(&balance)
-	logger.Log.Info(fmt.Sprintf("%s", balance))
 	return balance, result.Error
 }
 

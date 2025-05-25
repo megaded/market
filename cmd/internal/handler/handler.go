@@ -189,7 +189,7 @@ func (h *Handler) Orders() func(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		result := make([]dto.Order, len(orders))
+		result := make([]dto.Order, 0, len(orders))
 		for _, op := range orders {
 			result = append(result, dto.Order{Number: op.Number, Status: string(op.Status), UploadedAt: op.CreatedAt, Accrual: op.Accrual})
 		}
@@ -285,7 +285,7 @@ func (h *Handler) Withdrawals() func(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		result := make([]dto.Withdraw, len(operations))
+		result := make([]dto.Withdraw, 0, len(operations))
 		for _, op := range operations {
 			result = append(result, dto.Withdraw{Order: op.Order.Number, Sum: op.Value, ProcessedAt: op.CreatedAt})
 		}
