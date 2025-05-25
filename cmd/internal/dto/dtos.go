@@ -29,42 +29,30 @@ type Order struct {
 	UploadedAt time.Time `json:"uploaded_at"`
 }
 
-func (o *Withdraw) UnmarshalJSON(b []byte) error {
+func (o Withdraw) MarshalJSON() ([]byte, error) {
 	type Dup Withdraw
 	tmp := struct {
 		ProcessedAt string `json:"processed_at"`
-		*Dup
+		Dup
 	}{
-		Dup: (*Dup)(o),
+		Dup: (Dup)(o),
 	}
-	err := json.Unmarshal(b, &tmp)
-	if err != nil {
-		return err
-	}
-	o.ProcessedAt, err = time.Parse(time.RFC3339, tmp.ProcessedAt)
-	if err != nil {
-		return err
-	}
-	return nil
+	tmp.ProcessedAt = o.ProcessedAt.Format(time.RFC3339)
+	b, err := json.Marshal(tmp)
+	return b, err
 }
 
-func (o *Order) UnmarshalJSON(b []byte) error {
+func (o Order) MarshalJSON() ([]byte, error) {
 	type Dup Order
 	tmp := struct {
 		UploadedAt string `json:"uploaded_at"`
-		*Dup
+		Dup
 	}{
-		Dup: (*Dup)(o),
+		Dup: (Dup)(o),
 	}
-	err := json.Unmarshal(b, &tmp)
-	if err != nil {
-		return err
-	}
-	o.UploadedAt, err = time.Parse(time.RFC3339, tmp.UploadedAt)
-	if err != nil {
-		return err
-	}
-	return nil
+	tmp.UploadedAt = o.UploadedAt.Format(time.RFC3339)
+	b, err := json.Marshal(tmp)
+	return b, err
 }
 
 type Balance struct {
