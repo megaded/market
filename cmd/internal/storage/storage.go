@@ -2,12 +2,14 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 
 	"github.com/megaded/market/cmd/internal/config"
 	internal_error "github.com/megaded/market/cmd/internal/error"
 	"github.com/megaded/market/cmd/internal/identity"
 	"github.com/megaded/market/cmd/internal/logger"
+	"github.com/pressly/goose"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -23,7 +25,7 @@ type Storager interface {
 	UpdateOrder(ctx context.Context, number string, status string, accrual float64) error
 	Accrual(ctx context.Context, userID int, orderID int, amount float64) error
 	Withdraw(ctx context.Context, userID int, amount float64) error
-	CreateOperation(ctx context.Context, userID int, orderID *int, operationType string, value float64) error
+	CreateOperation(ctx context.Context, userID int, orderID int, operationType string, value float64) error
 	GetOperations(ctx context.Context, userID int, operationType string) ([]Operation, error)
 }
 
@@ -46,9 +48,8 @@ func (s *storage) GetOperations(ctx context.Context, userID int, operationType s
 	}
 }
 
-func (s *storage) CreateOperation(ctx context.Context, userID int, orderID *int, operationType string, value float64) error {
-	order := uint(*orderID)
-	operation := Operation{UserID: uint(userID), OrderID: &order, Value: value, OperationType: operationType}
+func (s *storage) CreateOperation(ctx context.Context, userID int, orderID int, operationType string, value float64) error {
+	operation := Operation{UserID: uint(userID), OrderID: uint(orderID), Value: value, OperationType: operationType}
 	r := s.db.WithContext(ctx).Create(&operation)
 	return r.Error
 }
@@ -69,7 +70,7 @@ func (s *storage) Withdraw(ctx context.Context, userID int, amount float64) erro
 		db.Rollback()
 		return err
 	}
-	err := s.CreateOperation(ctx, userID, nil, string(Withdraw), amount)
+	err := s.CreateOperation(ctx, userID, 0, string(Withdraw), amount)
 	if err != nil {
 		db.Rollback()
 	}
@@ -91,7 +92,7 @@ func (s *storage) Accrual(ctx context.Context, userID int, orderID int, amount f
 	if r.Error != nil {
 		return r.Error
 	}
-	err := s.CreateOperation(ctx, userID, &orderID, string(Accrual), amount)
+	err := s.CreateOperation(ctx, userID, 0, string(Accrual), amount)
 	if err != nil {
 		db.Rollback()
 	}
@@ -202,12 +203,23 @@ func (s *storage) GetBalance(ctx context.Context, userID int64) (Balance, error)
 func NewStorage(c *config.Config) Storager {
 	db, err := gorm.Open(postgres.Open(c.DBConnString), &gorm.Config{})
 	if err != nil {
-		panic("failed to connect database")
+		logger.Log.Fatal(err.Error())
 	}
 
-	db.AutoMigrate(&User{})
+	/*db.AutoMigrate(&User{})
 	db.AutoMigrate(&Order{})
 	db.AutoMigrate(&Balance{})
-	db.AutoMigrate(&Operation{})
+	db.AutoMigrate(&Operation{}) */
 	return &storage{db: db}
+}
+
+func migrate(db *sql.DB) error {
+	if err := goose.SetDialect("postgres"); err != nil {
+		return nil
+	}
+	if err := goose.Up(db, "migrations"); err != nil {
+		return err
+	}
+
+	return nil
 }

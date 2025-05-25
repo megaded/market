@@ -17,6 +17,7 @@ require (
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/jwx/v2 v2.1.3 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.31.0 // indirect
@@ -30,6 +31,8 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/lib/pq v1.10.9
+	github.com/pressly/goose v2.7.0+incompatible
 	go.uber.org/zap v1.27.0
 	golang.org/x/text v0.25.0 // indirect
 	gorm.io/driver/postgres v1.5.11
