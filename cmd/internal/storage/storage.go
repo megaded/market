@@ -23,11 +23,23 @@ type Storager interface {
 	Accrual(ctx context.Context, userID int, orderID int, amount float64) error
 	Withdraw(ctx context.Context, userID int, orderID int, amount float64) error
 	CreateOperation(ctx context.Context, userID int, orderID int, operationType string, value float64) error
+	GetOperations(ctx context.Context, userID int, operationType string) ([]Operation, error)
 }
 
 type storage struct {
 	db       *gorm.DB
 	identity identity.IdentityProvider
+}
+
+func (s *storage) GetOperations(ctx context.Context, userID int, operationType string) ([]Operation, error) {
+	var operations []Operation
+	result := s.db.WithContext(ctx).Where("user_id = ? AND operation_type = ?", userID, operationType).Find(&operations)
+	switch {
+	case errors.Is(result.Error, gorm.ErrRecordNotFound):
+		return operations, internal_error.ErrWithdrawalNotFound
+	default:
+		return operations, result.Error
+	}
 }
 
 func (s *storage) CreateOperation(ctx context.Context, userID int, orderID int, operationType string, value float64) error {
@@ -40,7 +52,12 @@ func (s *storage) Withdraw(ctx context.Context, userID int, orderID int, amount 
 	db := s.db.WithContext(ctx)
 	db.Begin()
 	defer db.Commit()
-	if err := db.Model(Balance{}).Where("user_id = ?", userID).Select("amount").Updates(map[string]interface{}{"amount": amount}).Error; err != nil {
+	var balance Balance
+	r := db.Where("user_id = ?", userID).First(&balance)
+	if r.Error != nil {
+		return r.Error
+	}
+	if err := db.Model(Balance{}).Where("user_id = ?", userID).Select("amount").Updates(map[string]interface{}{"amount": balance.Balance - amount}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return internal_error.ErrOrderNotFound
 		}
@@ -56,14 +73,18 @@ func (s *storage) Withdraw(ctx context.Context, userID int, orderID int, amount 
 
 func (s *storage) Accrual(ctx context.Context, userID int, orderID int, amount float64) error {
 	db := s.db.WithContext(ctx)
-	db.Begin()
 	defer db.Commit()
-	if err := db.Model(Balance{}).Where("user_id = ?", userID).Select("amount").Updates(map[string]interface{}{"amount": amount}).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	var balance Balance
+	r := db.Where("user_id = ?", userID).First(&balance)
+	if r.Error != nil {
+		if errors.Is(r.Error, gorm.ErrRecordNotFound) {
 			return internal_error.ErrOrderNotFound
 		}
-		db.Rollback()
-		return err
+		return r.Error
+	}
+	r = db.Model(Balance{}).Where("user_id = ?", userID).Select("amount").Updates(map[string]interface{}{"amount": balance.Balance + amount})
+	if r.Error != nil {
+		return r.Error
 	}
 	err := s.CreateOperation(ctx, userID, orderID, string(Accrual), amount)
 	if err != nil {

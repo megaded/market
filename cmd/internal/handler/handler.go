@@ -189,6 +189,10 @@ func (h *Handler) Orders() func(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		result := make([]dto.Order, len(orders))
+		for _, op := range orders {
+			result = append(result, dto.Order{Number: op.Number, Status: string(op.Status), UploadedAt: op.CreatedAt, Accrual: op.Accrual})
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err = json.NewEncoder(w).Encode(orders); err != nil {
@@ -263,6 +267,34 @@ func (h *Handler) Withdraw() func(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Withdrawals() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-
+		userID, err := getUserID(r)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		operations, err := h.Storage.GetOperations(r.Context(), userID, string(storage.Withdraw))
+		if err != nil {
+			switch {
+			case errors.Is(err, internal_error.ErrOrderNotFound):
+				w.WriteHeader(http.StatusNoContent)
+				logger.Log.Info(" Withdrawal not found", zap.Error(err))
+				return
+			default:
+				w.WriteHeader(http.StatusInternalServerError)
+				logger.Log.Info("internal error", zap.Error(err))
+				return
+			}
+		}
+		result := make([]dto.Withdraw, len(operations))
+		for _, op := range operations {
+			result = append(result, dto.Withdraw{Order: op.Order.Number, Sum: op.Value, ProcessedAt: op.CreatedAt})
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err = json.NewEncoder(w).Encode(result); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			logger.Log.Info("failed to encode operations", zap.Error(err))
+			return
+		}
 	}
 }

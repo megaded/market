@@ -17,6 +17,9 @@ func CreateOrderManager(storage storage.Storager) OrderManager {
 }
 
 func (m *OrderManager) AddOrder(ctx context.Context, userID int64, orderNumber string) error {
+	if !validateOrderNumber(orderNumber) {
+		return internal_error.ErrInvalidOrderNumber
+	}
 	order, err := m.storage.GetOrder(ctx, orderNumber)
 	if err != nil {
 		switch {
@@ -62,4 +65,31 @@ func (m *OrderManager) WithdrawOrder(ctx context.Context, userID int, number str
 	}
 	err = m.storage.Withdraw(ctx, int(order.UserID), int(order.ID), withdraw)
 	return err
+}
+
+func validateOrderNumber(number string) bool {
+	var sum int
+	double := false
+
+	for i := len(number) - 1; i >= 0; i-- {
+		r := number[i]
+
+		if r < '0' || r > '9' {
+			return false
+		}
+
+		digit := int(r - '0')
+
+		if double {
+			digit *= 2
+			if digit > 9 {
+				digit -= 9
+			}
+		}
+
+		sum += digit
+		double = !double
+	}
+
+	return sum%10 == 0
 }
