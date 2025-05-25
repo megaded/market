@@ -116,7 +116,6 @@ func (h *Handler) Login() func(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) LoadOrder() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger.Log.Info("LoadOrder")
 		userID, err := getUserID(r)
 		if err != nil {
 			logger.Log.Info(err.Error())
@@ -143,23 +142,19 @@ func (h *Handler) LoadOrder() func(w http.ResponseWriter, r *http.Request) {
 		if err = h.OrderManager.AddOrder(r.Context(), int64(userID), string(orderNumber)); err != nil {
 			switch {
 			case errors.Is(err, internal_error.ErrInvalidOrderNumber):
-				logger.Log.Info(string(orderNumber))
 				logger.Log.Info(err.Error())
 				w.WriteHeader(http.StatusUnprocessableEntity)
 				return
 			case errors.Is(err, internal_error.ErrOrderAlreadyExists):
-				logger.Log.Info(string(orderNumber))
 				logger.Log.Info(err.Error())
 				w.WriteHeader(http.StatusOK)
 				return
 			case errors.Is(err, internal_error.ErrOrderAlreadyExistsForAnotherUser):
-				logger.Log.Info(string(orderNumber))
 				logger.Log.Info(err.Error())
 				w.WriteHeader(http.StatusConflict)
 				return
 			default:
 				w.WriteHeader(http.StatusInternalServerError)
-				logger.Log.Info(string(orderNumber))
 				logger.Log.Info("failed to add order", zap.Error(err))
 				return
 			}
@@ -205,22 +200,25 @@ func (h *Handler) Orders() func(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Balance() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		userID, err := getUserID(r)
 		if err != nil {
+			w.Write([]byte(err.Error()))
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 		balance, err := h.Storage.GetBalance(r.Context(), int64(userID))
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
 			logger.Log.Info("internal error", zap.Error(err))
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "application/json")
 		if err = json.NewEncoder(w).Encode(dto.Balance{Current: balance.Balance, Withdraw: balance.Withdrawn}); err != nil {
+			w.Write([]byte(err.Error()))
 			w.WriteHeader(http.StatusInternalServerError)
-			logger.Log.Info("failed to encode orders", zap.Error(err))
+			logger.Log.Info("failed to encode balance", zap.Error(err))
 			return
 		}
 	}

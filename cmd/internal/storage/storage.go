@@ -7,6 +7,7 @@ import (
 	"github.com/megaded/market/cmd/internal/config"
 	internal_error "github.com/megaded/market/cmd/internal/error"
 	"github.com/megaded/market/cmd/internal/identity"
+	"github.com/megaded/market/cmd/internal/logger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -38,6 +39,9 @@ func (s *storage) GetOperations(ctx context.Context, userID int, operationType s
 	case errors.Is(result.Error, gorm.ErrRecordNotFound):
 		return operations, internal_error.ErrWithdrawalNotFound
 	default:
+		if result.Error != nil {
+			logger.Log.Info(result.Error.Error())
+		}
 		return operations, result.Error
 	}
 }
@@ -188,6 +192,9 @@ func (s *storage) CreateUser(ctx context.Context, login string, password string)
 func (s *storage) GetBalance(ctx context.Context, userID int64) (Balance, error) {
 	var balance Balance
 	result := s.db.WithContext(ctx).Where("user_id = ?", userID).First(&balance)
+	if result.Error != nil {
+		logger.Log.Info(result.Error.Error())
+	}
 	return balance, result.Error
 }
 
