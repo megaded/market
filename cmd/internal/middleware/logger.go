@@ -34,7 +34,6 @@ func (r *responseLogWriter) WriteHeader(statusCode int) {
 func (r *responseLogWriter) logResponse() {
 	logger.Log.Info("Response status", zap.Int("status", r.data.status))
 	logger.Log.Info("Response size", zap.Int("size", r.data.size))
-	logger.Log.Info("Response hash", zap.String("hash", r.Header().Get("HashSHA256")))
 }
 
 func Logger(h http.Handler) http.Handler {
@@ -63,8 +62,6 @@ func Logger(h http.Handler) http.Handler {
 		logger.Log.Info("Request body", zap.String("body", string(requestBody)))
 		logger.Log.Info("Request Content-type", zap.String("content-type", r.Header.Get("Content-Type")))
 		logger.Log.Info("Request Content-Encoding", zap.String("Content-Encoding", r.Header.Get("Content-Encoding")))
-		logger.Log.Info("Request Hash", zap.String("Hash", r.Header.Get("HashSHA256")))
-
 		lw.logResponse()
 
 	}

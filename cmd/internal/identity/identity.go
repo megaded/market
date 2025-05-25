@@ -13,7 +13,9 @@ import (
 	"go.uber.org/zap"
 )
 
-const UserID = "user_id"
+type ContextKey string
+
+const UserID ContextKey = "user_id"
 
 type IdentityProvider struct {
 	key string
@@ -25,9 +27,9 @@ func CreateIdentityProvider(c *config.Config) IdentityProvider {
 
 func (id *IdentityProvider) GenerateToken(userID int) (string, error) {
 	claims := jwt.MapClaims{
-		UserID: userID,
-		"exp":  time.Now().Add(24 * time.Hour).Unix(),
-		"iat":  time.Now().Unix(),
+		"user_id": userID,
+		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+		"iat":     time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(id.key))
