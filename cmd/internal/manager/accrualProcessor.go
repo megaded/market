@@ -13,15 +13,16 @@ import (
 )
 
 type AccrualProcessor struct {
-	storage     storage.Storager
-	client      AccrualClient
-	workerCount int
+	storage      storage.Storager
+	client       AccrualClient
+	orderManager OrderManager
 }
 
 func NewAccrualProcessor(storage storage.Storager, accrualClient *AccrualClient) *AccrualProcessor {
 	return &AccrualProcessor{
-		storage: storage,
-		client:  *accrualClient,
+		storage:      storage,
+		client:       *accrualClient,
+		orderManager: CreateOrderManager(storage),
 	}
 }
 
@@ -105,7 +106,7 @@ func (p *AccrualProcessor) processOrder(ctx context.Context, order storage.Order
 		newAccrual = response.Response.Accrual
 	}
 
-	if err := p.storage.UpdateOrder(order.Number, response.Response.Status, newAccrual); err != nil {
+	if err := p.orderManager.UpdateOrder(order.Number, response.Response.Status, newAccrual); err != nil {
 		logger.Log.Info("failed to update order accrual", zap.String("order_number", order.Number), zap.Error(err))
 		return
 	}

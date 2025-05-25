@@ -3,7 +3,6 @@ package manager
 import (
 	"errors"
 
-	"github.com/megaded/market/cmd/internal/config"
 	internal_error "github.com/megaded/market/cmd/internal/error"
 	"github.com/megaded/market/cmd/internal/storage"
 )
@@ -12,8 +11,8 @@ type OrderManager struct {
 	storage storage.Storager
 }
 
-func CreateOrderManager(c *config.Config) OrderManager {
-	return OrderManager{storage: storage.NewStorage(c)}
+func CreateOrderManager(storage storage.Storager) OrderManager {
+	return OrderManager{storage: storage}
 }
 
 func (m *OrderManager) AddOrder(userID int64, orderNumber string) error {
@@ -34,4 +33,16 @@ func (m *OrderManager) AddOrder(userID int64, orderNumber string) error {
 		return internal_error.ErrOrderAlreadyExists
 	}
 	return nil
+}
+
+func (m *OrderManager) UpdateOrder(number string, status string, accrual int) error {
+	if err := m.storage.UpdateOrder(number, status, accrual); err != nil {
+		return err
+	}
+	order, err := m.storage.GetOrder(number)
+	if err != nil {
+		return err
+	}
+	err = m.storage.UpdateBalance(int(order.UserID), accrual)
+	return err
 }

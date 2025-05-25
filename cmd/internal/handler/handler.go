@@ -201,7 +201,24 @@ func (h *Handler) Orders() func(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Balance() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-
+		userID, err := getUserID(r)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		balance, err := h.Storage.GetBalance(int64(userID))
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			logger.Log.Info("internal error", zap.Error(err))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		if err = json.NewEncoder(w).Encode(balance); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			logger.Log.Info("failed to encode orders", zap.Error(err))
+			return
+		}
 	}
 }
 

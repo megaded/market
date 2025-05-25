@@ -7,15 +7,16 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/megaded/market/cmd/internal/config"
 	"github.com/megaded/market/cmd/internal/handler"
-	auth "github.com/megaded/market/cmd/internal/middleware"
+	internal_middleware "github.com/megaded/market/cmd/internal/middleware"
 )
 
 func CreateRouter(h handler.Handler, c config.Config) http.Handler {
 	router := chi.NewRouter()
 	router.Use(middleware.Compress(5, "gzip"))
+	router.Use(internal_middleware.Logger)
 	router.Group(func(r chi.Router) {
 		r.Route("/api/user", func(rr chi.Router) {
-			r.Use(auth.AuthMiddleWare(h.Identity))
+			r.Use(internal_middleware.AuthMiddleWare(h.Identity))
 			rr.Post("/orders", h.LoadOrder())
 			rr.Get("/orders", h.Orders())
 			rr.Get("/balance", h.Balance())

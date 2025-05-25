@@ -6,7 +6,6 @@ import (
 
 	"github.com/megaded/market/cmd/internal/config"
 	"github.com/megaded/market/cmd/internal/handler"
-	"github.com/megaded/market/cmd/internal/logger"
 	"github.com/megaded/market/cmd/internal/manager"
 	"github.com/megaded/market/cmd/internal/router"
 	"github.com/megaded/market/cmd/internal/storage"
@@ -29,13 +28,10 @@ func (s *Server) Start(ctx context.Context) {
 	}
 }
 
-func CreateServer(ctx context.Context) (s Server) {
+func CreateServer(ctx context.Context, config config.Config, storage storage.Storager) (s Server) {
 	server := Server{}
-	logger.SetupLogger("Info")
-	serverConfig := config.GetConfig()
-	storage := storage.NewStorage(&serverConfig)
-	orderManager := manager.CreateOrderManager(&serverConfig)
-	server.Handler = router.CreateRouter(handler.CreateHandlers(storage, orderManager), serverConfig)
-	server.Address = serverConfig.Address
+	orderManager := manager.CreateOrderManager(storage)
+	server.Handler = router.CreateRouter(handler.CreateHandlers(storage, orderManager), config)
+	server.Address = config.Address
 	return server
 }
