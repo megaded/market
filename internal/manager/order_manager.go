@@ -12,10 +12,10 @@ import (
 type OrderStorager interface {
 	GetOrder(ctx context.Context, orderNumber string) (models.Order, error)
 	CreateOrder(ctx context.Context, userID int64, orderNumber string) (models.Order, error)
-	UpdateOrder(ctx context.Context, number string, status string, accrual float64) error
-	Accrual(ctx context.Context, userID int, orderNumber string, amount float64) error
+	UpdateOrder(ctx context.Context, number string, status string, accrual uint) error
+	Accrual(ctx context.Context, userID int, orderNumber string, amount uint) error
 	GetBalance(ctx context.Context, userID int64) (models.Balance, error)
-	Withdraw(ctx context.Context, userID int, orderNumber string, amount float64) error
+	Withdraw(ctx context.Context, userID int, orderNumber string, amount uint) error
 }
 
 type OrderManager struct {

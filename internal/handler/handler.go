@@ -260,7 +260,7 @@ func (h *Handler) Withdrawals() func(w http.ResponseWriter, r *http.Request) {
 		}
 		result := make([]dto.Withdraw, 0, len(operations))
 		for _, op := range operations {
-			result = append(result, dto.Withdraw{Order: op.Order, Sum: op.Value, ProcessedAt: op.CreatedAt})
+			result = append(result, dto.Withdraw{Order: op.OrderNumber, Sum: op.Value, ProcessedAt: op.CreatedAt})
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)

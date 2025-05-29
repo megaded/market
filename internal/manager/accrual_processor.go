@@ -102,7 +102,7 @@ func (p *AccrualProcessor) processOrder(ctx context.Context, order models.Order)
 		}
 	}
 
-	var newAccrual float64
+	var newAccrual uint
 	if response.Response.Status == string(models.OrderStatusProcessed) {
 		newAccrual = response.Response.Accrual
 	}

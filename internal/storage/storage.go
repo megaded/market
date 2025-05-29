@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"errors"
-	"math"
 
 	"github.com/megaded/market/internal/config"
 	internal_error "github.com/megaded/market/internal/error"
@@ -49,7 +48,7 @@ func (s *storage) GetOperations(ctx context.Context, userID int, operationType s
 }
 
 func (s *storage) CreateOperation(ctx context.Context, userID int, orderNumber string, operationType string, value uint) error {
-	operation := Operation{UserID: uint(userID), OrderNumber: orderNumber, Value: value, OperationType: operationType}
+	operation := models.Operation{UserID: uint(userID), OrderNumber: orderNumber, Value: value, OperationType: operationType}
 	r := s.db.WithContext(ctx).Create(&operation)
 	return r.Error
 }
@@ -63,8 +62,7 @@ func (s *storage) Withdraw(ctx context.Context, userID int, orderNumber string, 
 	if r.Error != nil {
 		return r.Error
 	}
-	newBalance := math.Round(()*100) / 100
-	if err := db.Model(models.Balance{}).Where("user_id = ?", userID).Select("balance", "withdrawn").Updates(map[string]interface{}{"balance": newBalance, "withdrawn": balance.Withdrawn + amount}).Error; err != nil {
+	if err := db.Model(models.Balance{}).Where("user_id = ?", userID).Select("balance", "withdrawn").Updates(map[string]interface{}{"balance": balance.Balance - amount, "withdrawn": balance.Withdrawn + amount}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return internal_error.ErrOrderNotFound
 		}
@@ -78,7 +76,7 @@ func (s *storage) Withdraw(ctx context.Context, userID int, orderNumber string, 
 	return nil
 }
 
-func (s *storage) Accrual(ctx context.Context, userID int, orderNumber string, amount float64) error {
+func (s *storage) Accrual(ctx context.Context, userID int, orderNumber string, amount uint) error {
 	db := s.db.WithContext(ctx)
 	defer db.Commit()
 	var balance models.Balance
@@ -89,8 +87,7 @@ func (s *storage) Accrual(ctx context.Context, userID int, orderNumber string, a
 		}
 		return r.Error
 	}
-	newBalance := math.Round(balance.Balance+amount*100) / 100
-	r = db.Model(models.Balance{}).Where("user_id = ?", userID).Select("balance").Updates(map[string]interface{}{"balance": newBalance})
+	r = db.Model(models.Balance{}).Where("user_id = ?", userID).Select("balance").Updates(map[string]interface{}{"balance": balance.Balance + amount})
 	if r.Error != nil {
 		return r.Error
 	}
@@ -106,7 +103,7 @@ func (s *storage) CreateOrder(ctx context.Context, userID int64, orderNumber str
 	r := s.db.WithContext(ctx).Create(&order)
 	return order, r.Error
 }
-func (s *storage) UpdateOrder(ctx context.Context, number string, status string, accrual float64) error {
+func (s *storage) UpdateOrder(ctx context.Context, number string, status string, accrual uint) error {
 	if err := s.db.WithContext(ctx).Model(models.Order{}).Where("number = ?", number).Select("status", "accrual").Updates(map[string]interface{}{"status": status, "accrual": accrual}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return internal_error.ErrOrderNotFound
