@@ -26,8 +26,8 @@ func CreateOrderManager(storage OrderStorager) OrderManager {
 	return OrderManager{storage: storage}
 }
 
-func (m *OrderManager) UpdateOrder(number string, status string, accrual uint) error {
-	err := m.UpdateOrder(number, status, 0)
+func (m *OrderManager) UpdateOrder(cxt context.Context, number string, status string, accrual uint) error {
+	_, err := m.storage.UpdateOrder(cxt, number, status, 0)
 	return err
 }
 

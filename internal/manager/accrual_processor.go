@@ -112,7 +112,7 @@ func (p *AccrualProcessor) processOrder(ctx context.Context, order models.Order)
 		}
 
 	}
-	if err := p.orderManager.UpdateOrder(order.Number, response.Response.Status, 0); err != nil {
+	if err := p.orderManager.UpdateOrder(ctx, order.Number, response.Response.Status, 0); err != nil {
 		logger.Log.Info("failed to update order status", zap.String("order_number", order.Number), zap.Error(err))
 		return
 	}
