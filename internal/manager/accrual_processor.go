@@ -8,22 +8,25 @@ import (
 
 	internal_error "github.com/megaded/market/internal/error"
 	"github.com/megaded/market/internal/logger"
-	"github.com/megaded/market/internal/storage"
 	"github.com/megaded/market/internal/storage/models"
 	"go.uber.org/zap"
 )
 
+type Storager interface {
+	GetProcessingOrders(ctx context.Context) ([]models.Order, error)
+}
+
 type AccrualProcessor struct {
-	storage      storage.Storager
+	storage      Storager
 	client       AccrualClient
 	orderManager OrderManager
 }
 
-func NewAccrualProcessor(storage storage.Storager, accrualClient *AccrualClient) *AccrualProcessor {
+func NewAccrualProcessor(storage Storager, accrualClient *AccrualClient, orderManager OrderManager) *AccrualProcessor {
 	return &AccrualProcessor{
 		storage:      storage,
 		client:       *accrualClient,
-		orderManager: CreateOrderManager(storage),
+		orderManager: orderManager,
 	}
 }
 
@@ -102,13 +105,16 @@ func (p *AccrualProcessor) processOrder(ctx context.Context, order models.Order)
 		}
 	}
 
-	var newAccrual uint
 	if response.Response.Status == string(models.OrderStatusProcessed) {
-		newAccrual = response.Response.Accrual
-	}
+		if err := p.orderManager.AccrualOrder(ctx, order.Number, response.Response.Accrual); err != nil {
+			logger.Log.Info("failed to update order accrual", zap.String("order_number", order.Number), zap.Error(err))
+			return
+		}
 
-	if err := p.orderManager.AccrualOrder(ctx, order.Number, response.Response.Status, newAccrual); err != nil {
-		logger.Log.Info("failed to update order accrual", zap.String("order_number", order.Number), zap.Error(err))
+	}
+	if err := p.orderManager.UpdateOrder(order.Number, response.Response.Status, 0); err != nil {
+		logger.Log.Info("failed to update order status", zap.String("order_number", order.Number), zap.Error(err))
 		return
 	}
+
 }

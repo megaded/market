@@ -13,7 +13,6 @@ import (
 	"github.com/megaded/market/internal/manager"
 	"github.com/megaded/market/internal/server"
 	"github.com/megaded/market/internal/storage"
-	"github.com/pressly/goose"
 	"go.uber.org/zap"
 )
 
@@ -46,22 +45,23 @@ func main() {
 	}
 	storage := storage.NewStorage(cfg)
 	client := manager.CreateAccrualClient(cfg.AccrualSystemAddress)
-	accrualProcessor := manager.NewAccrualProcessor(storage, &client)
+	orderManager := manager.CreateOrderManager(&storage)
+	accrualProcessor := manager.NewAccrualProcessor(&storage, &client, orderManager)
 	go accrualProcessor.Run(ctx, internalSecond, workerCount)
 
-	s := server.CreateServer(ctx, cfg, storage)
+	s := server.CreateServer(ctx, cfg, &storage)
 	if err := s.Start(ctx); err != nil {
 		logger.Log.Fatal("server failed", zap.Error(err))
 	}
 }
 
 func migrate(db *sql.DB) error {
-	if err := goose.SetDialect("postgres"); err != nil {
-		return err
-	}
-	if err := goose.Up(db, "migrations"); err != nil {
-		return err
-	}
+	/*	if err := goose.SetDialect("postgres"); err != nil {
+			return err
+		}
+		if err := goose.Up(db, "migrations"); err != nil {
+			return err
+		} */
 
 	return nil
 }

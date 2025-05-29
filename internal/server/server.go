@@ -10,8 +10,23 @@ import (
 	"github.com/megaded/market/internal/handler"
 	"github.com/megaded/market/internal/manager"
 	"github.com/megaded/market/internal/router"
-	"github.com/megaded/market/internal/storage"
+	"github.com/megaded/market/internal/storage/models"
 )
+
+type Storager interface {
+	GetOrders(ctx context.Context, userID uint) ([]models.Order, error)
+	GetOrder(ctx context.Context, orderNumber string) (models.Order, error)
+	CreateOrder(ctx context.Context, userID uint, orderNumber string) (models.Order, error)
+	GetBalance(ctx context.Context, userID uint) (models.Balance, error)
+	CreateUser(ctx context.Context, login string, hash string) (models.User, error)
+	GetUserByOrderNumber(ctx context.Context, orderNumber string) (models.User, error)
+	GetUser(ctx context.Context, login string) (models.User, error)
+	GetProcessingOrders(ctx context.Context) ([]models.Order, error)
+	UpdateOrder(ctx context.Context, number string, status string, accrual uint) (models.Order, error)
+	AccrualOrder(ctx context.Context, number string, newBalance uint, accrual uint) error
+	Withdraw(ctx context.Context, userID uint, orderNumber string, newBalance uint, amount uint) error
+	GetOperations(ctx context.Context, userID uint, operationType string) ([]models.Operation, error)
+}
 
 type Server struct {
 	Handler http.Handler
@@ -33,7 +48,7 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
-func CreateServer(ctx context.Context, config *config.Config, storage storage.Storager) (s Server) {
+func CreateServer(ctx context.Context, config *config.Config, storage Storager) (s Server) {
 	server := Server{}
 	orderManager := manager.CreateOrderManager(storage)
 	userManager := manager.CreateUserManager(storage)

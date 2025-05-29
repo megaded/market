@@ -26,8 +26,8 @@ type User struct {
 
 type Order struct {
 	gorm.Model
-	UserID uint
-	User
+	UserID  uint
+	User    User
 	Number  string
 	Accrual uint
 	Status  OrderStatus

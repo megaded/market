@@ -5,7 +5,6 @@ import (
 
 	internalerror "github.com/megaded/market/internal/error"
 	"github.com/megaded/market/internal/identity"
-	"github.com/megaded/market/internal/storage"
 	"github.com/megaded/market/internal/storage/models"
 )
 
@@ -18,7 +17,7 @@ type UserManager struct {
 	identity identity.IdentityProvider
 }
 
-func CreateUserManager(s storage.Storager) UserManager {
+func CreateUserManager(s UserStorager) UserManager {
 	return UserManager{storage: s}
 }
 

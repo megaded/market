@@ -13,15 +13,14 @@ import (
 	"github.com/megaded/market/internal/identity"
 	"github.com/megaded/market/internal/logger"
 	"github.com/megaded/market/internal/manager"
-	"github.com/megaded/market/internal/storage"
 	"github.com/megaded/market/internal/storage/models"
 )
 
 type Storager interface {
 	GetUser(ctx context.Context, login string) (models.User, error)
-	GetOrders(ctx context.Context, userID int64) ([]models.Order, error)
-	GetBalance(ctx context.Context, userID int64) (models.Balance, error)
-	GetOperations(ctx context.Context, userID int, operationType string) ([]models.Operation, error)
+	GetOrders(ctx context.Context, userID uint) ([]models.Order, error)
+	GetBalance(ctx context.Context, userID uint) (models.Balance, error)
+	GetOperations(ctx context.Context, userID uint, operationType string) ([]models.Operation, error)
 }
 
 type Handler struct {
@@ -39,7 +38,7 @@ func getUserID(r *http.Request) (int, error) {
 	return userID, nil
 }
 
-func CreateHandlers(s storage.Storager, m manager.OrderManager, u manager.UserManager) Handler {
+func CreateHandlers(s Storager, m manager.OrderManager, u manager.UserManager) Handler {
 	return Handler{Storage: s, OrderManager: m, UserManager: u}
 }
 
@@ -136,7 +135,7 @@ func (h *Handler) LoadOrder() func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err = h.OrderManager.AddOrder(r.Context(), int64(userID), string(orderNumber)); err != nil {
+		if err = h.OrderManager.AddOrder(r.Context(), uint(userID), string(orderNumber)); err != nil {
 			switch {
 			case errors.Is(err, internal_error.ErrInvalidOrderNumber):
 				handleError(w, http.StatusUnprocessableEntity, err)
@@ -164,7 +163,7 @@ func (h *Handler) Orders() func(w http.ResponseWriter, r *http.Request) {
 			handleError(w, http.StatusUnauthorized, err)
 			return
 		}
-		orders, err := h.Storage.GetOrders(r.Context(), int64(userID))
+		orders, err := h.Storage.GetOrders(r.Context(), uint(userID))
 		if err != nil {
 			switch {
 			case errors.Is(err, internal_error.ErrOrderNotFound):
@@ -196,7 +195,7 @@ func (h *Handler) Balance() func(w http.ResponseWriter, r *http.Request) {
 			handleError(w, http.StatusUnauthorized, err)
 			return
 		}
-		balance, err := h.Storage.GetBalance(r.Context(), int64(userID))
+		balance, err := h.Storage.GetBalance(r.Context(), uint(userID))
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err)
 			return
@@ -222,7 +221,7 @@ func (h *Handler) Withdraw() func(w http.ResponseWriter, r *http.Request) {
 			handleError(w, http.StatusBadRequest, err)
 			return
 		}
-		err = h.OrderManager.WithdrawOrder(r.Context(), userID, withDraw.Order, withDraw.Sum)
+		err = h.OrderManager.WithdrawOrder(r.Context(), uint(userID), withDraw.Order, withDraw.Sum)
 		if err != nil {
 			switch {
 			case errors.Is(err, internal_error.ErrInvalidWithdrawSum):
@@ -247,7 +246,7 @@ func (h *Handler) Withdrawals() func(w http.ResponseWriter, r *http.Request) {
 			handleError(w, http.StatusUnauthorized, err)
 			return
 		}
-		operations, err := h.Storage.GetOperations(r.Context(), userID, string(models.Withdraw))
+		operations, err := h.Storage.GetOperations(r.Context(), uint(userID), string(models.Withdraw))
 		if err != nil {
 			switch {
 			case errors.Is(err, internal_error.ErrWithdrawalNotFound):

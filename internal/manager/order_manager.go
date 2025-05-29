@@ -5,28 +5,33 @@ import (
 	"errors"
 
 	internal_error "github.com/megaded/market/internal/error"
-	"github.com/megaded/market/internal/storage"
 	"github.com/megaded/market/internal/storage/models"
 )
 
 type OrderStorager interface {
 	GetOrder(ctx context.Context, orderNumber string) (models.Order, error)
-	CreateOrder(ctx context.Context, userID int64, orderNumber string) (models.Order, error)
-	UpdateOrder(ctx context.Context, number string, status string, accrual uint) error
-	Accrual(ctx context.Context, userID int, orderNumber string, amount uint) error
-	GetBalance(ctx context.Context, userID int64) (models.Balance, error)
-	Withdraw(ctx context.Context, userID int, orderNumber string, amount uint) error
+	CreateOrder(ctx context.Context, userID uint, orderNumber string) (models.Order, error)
+	AccrualOrder(ctx context.Context, number string, newBalance uint, accrual uint) error
+	GetBalance(ctx context.Context, userID uint) (models.Balance, error)
+	Withdraw(ctx context.Context, userID uint, orderNumber string, newBalance uint, amount uint) error
+	UpdateOrder(ctx context.Context, number string, status string, accrual uint) (models.Order, error)
+	GetUserByOrderNumber(ctx context.Context, orderNumber string) (models.User, error)
 }
 
 type OrderManager struct {
 	storage OrderStorager
 }
 
-func CreateOrderManager(storage storage.Storager) OrderManager {
+func CreateOrderManager(storage OrderStorager) OrderManager {
 	return OrderManager{storage: storage}
 }
 
-func (m *OrderManager) AddOrder(ctx context.Context, userID int64, orderNumber string) error {
+func (m *OrderManager) UpdateOrder(number string, status string, accrual uint) error {
+	err := m.UpdateOrder(number, status, 0)
+	return err
+}
+
+func (m *OrderManager) AddOrder(ctx context.Context, userID uint, orderNumber string) error {
 	if !validateOrderNumber(orderNumber) {
 		return internal_error.ErrInvalidOrderNumber
 	}
@@ -49,20 +54,21 @@ func (m *OrderManager) AddOrder(ctx context.Context, userID int64, orderNumber s
 	return nil
 }
 
-func (m *OrderManager) AccrualOrder(ctx context.Context, number string, status string, accrual uint) error {
-	if err := m.storage.UpdateOrder(ctx, number, status, accrual); err != nil {
-		return err
-	}
-	order, err := m.storage.GetOrder(ctx, number)
+func (m *OrderManager) AccrualOrder(ctx context.Context, number string, accrual uint) error {
+	user, err := m.storage.GetUserByOrderNumber(ctx, number)
 	if err != nil {
 		return err
 	}
-	err = m.storage.Accrual(ctx, int(order.UserID), number, accrual)
-	return err
+	balance, err := m.storage.GetBalance(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+	newBalance := balance.Balance + accrual
+	return m.storage.AccrualOrder(ctx, number, newBalance, accrual)
 }
 
-func (m *OrderManager) WithdrawOrder(ctx context.Context, userID int, number string, withdraw uint) error {
-	balance, err := m.storage.GetBalance(ctx, int64(userID))
+func (m *OrderManager) WithdrawOrder(ctx context.Context, userID uint, number string, withdraw uint) error {
+	balance, err := m.storage.GetBalance(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -70,7 +76,7 @@ func (m *OrderManager) WithdrawOrder(ctx context.Context, userID int, number str
 		return internal_error.ErrInvalidWithdrawSum
 	}
 
-	err = m.storage.Withdraw(ctx, userID, number, withdraw)
+	err = m.storage.Withdraw(ctx, userID, number, balance.Balance-withdraw, balance.Withdrawn+withdraw)
 	return err
 }
 
