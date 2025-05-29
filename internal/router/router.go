@@ -5,12 +5,11 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	"github.com/megaded/market/internal/config"
 	"github.com/megaded/market/internal/handler"
 	internal_middleware "github.com/megaded/market/internal/middleware"
 )
 
-func CreateRouter(h handler.Handler, c config.Config) http.Handler {
+func CreateRouter(h handler.Handler) http.Handler {
 	router := chi.NewRouter()
 	router.Use(middleware.Compress(5, "gzip"))
 	router.Use(internal_middleware.Logger)

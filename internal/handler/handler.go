@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,13 +14,21 @@ import (
 	"github.com/megaded/market/internal/logger"
 	"github.com/megaded/market/internal/manager"
 	"github.com/megaded/market/internal/storage"
-	"go.uber.org/zap"
+	"github.com/megaded/market/internal/storage/models"
 )
 
+type Storager interface {
+	GetUser(ctx context.Context, login string) (models.User, error)
+	GetOrders(ctx context.Context, userID int64) ([]models.Order, error)
+	GetBalance(ctx context.Context, userID int64) (models.Balance, error)
+	GetOperations(ctx context.Context, userID int, operationType string) ([]models.Operation, error)
+}
+
 type Handler struct {
-	Storage      storage.Storager
+	Storage      Storager
 	Identity     identity.IdentityProvider
 	OrderManager manager.OrderManager
+	UserManager  manager.UserManager
 }
 
 func getUserID(r *http.Request) (int, error) {
@@ -30,8 +39,8 @@ func getUserID(r *http.Request) (int, error) {
 	return userID, nil
 }
 
-func CreateHandlers(s storage.Storager, m manager.OrderManager) Handler {
-	return Handler{Storage: s, OrderManager: m}
+func CreateHandlers(s storage.Storager, m manager.OrderManager, u manager.UserManager) Handler {
+	return Handler{Storage: s, OrderManager: m, UserManager: u}
 }
 
 func (h *Handler) Register() func(w http.ResponseWriter, r *http.Request) {
@@ -39,29 +48,24 @@ func (h *Handler) Register() func(w http.ResponseWriter, r *http.Request) {
 		var user dto.User
 		err := json.NewDecoder(r.Body).Decode(&user)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			logger.Log.Info(err.Error())
-			w.Write([]byte(err.Error()))
+			handleError(w, http.StatusBadRequest, err)
 			return
 		}
-		newUser, err := h.Storage.CreateUser(r.Context(), user.Login, user.Password)
+		newUser, err := h.UserManager.CreateUser(r.Context(), user.Login, user.Password)
 		if err != nil {
 			switch {
 			case errors.Is(err, internal_error.ErrUserAlreadyExists):
-				w.WriteHeader(http.StatusConflict)
-				logger.Log.Info(err.Error())
-				w.Write([]byte(err.Error()))
+				handleError(w, http.StatusConflict, err)
+				return
 			default:
-				w.WriteHeader(http.StatusInternalServerError)
-				logger.Log.Info(err.Error())
-				w.Write([]byte(err.Error()))
+				handleError(w, http.StatusInternalServerError, err)
+				return
 			}
 		}
 		token, err := h.Identity.GenerateToken(int(newUser.ID))
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			logger.Log.Info(err.Error())
-			w.Write([]byte(err.Error()))
+			handleError(w, http.StatusInternalServerError, err)
+			return
 		}
 
 		w.Header().Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -74,13 +78,11 @@ func (h *Handler) Login() func(w http.ResponseWriter, r *http.Request) {
 		var user dto.User
 		err := json.NewDecoder(r.Body).Decode(&user)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			logger.Log.Info(err.Error())
-			w.Write([]byte(err.Error()))
+			handleError(w, http.StatusBadRequest, err)
 			return
 		}
 		if user.Login == "" || user.Password == "" {
-			w.WriteHeader(http.StatusUnauthorized)
+			handleError(w, http.StatusUnauthorized, err)
 			return
 		}
 		userInfo, err := h.Storage.GetUser(r.Context(), user.Login)
@@ -90,7 +92,7 @@ func (h *Handler) Login() func(w http.ResponseWriter, r *http.Request) {
 			if valResult {
 				token, err := h.Identity.GenerateToken(int(userInfo.ID))
 				if err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
+					handleError(w, http.StatusInternalServerError, err)
 					return
 				}
 				logger.Log.Info(fmt.Sprintf("User %s Authorization", user.Login))
@@ -101,14 +103,10 @@ func (h *Handler) Login() func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		case errors.Is(err, internal_error.ErrUserNotFound):
-			w.WriteHeader(http.StatusUnauthorized)
-			logger.Log.Info(err.Error())
-			w.Write([]byte(err.Error()))
+			handleError(w, http.StatusUnauthorized, err)
 			return
 		default:
-			w.WriteHeader(http.StatusInternalServerError)
-			logger.Log.Info(err.Error())
-			w.Write([]byte(err.Error()))
+			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
 	}
@@ -118,44 +116,39 @@ func (h *Handler) LoadOrder() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, err := getUserID(r)
 		if err != nil {
-			logger.Log.Info(err.Error())
-			w.WriteHeader(http.StatusUnauthorized)
+			handleError(w, http.StatusUnauthorized, err)
 			return
 		}
 
 		if r.Header.Get("Content-Type") != "text/plain" {
-			w.WriteHeader(http.StatusBadRequest)
+			handleError(w, http.StatusBadRequest, errors.New("Invalid content type"))
 			return
 		}
 
 		orderNumber, err := io.ReadAll(r.Body)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
+			handleError(w, http.StatusBadRequest, err)
 			return
 		}
 
 		if len(orderNumber) == 0 {
-			w.WriteHeader(http.StatusBadRequest)
+			handleError(w, http.StatusBadRequest, errors.New("Orders not found"))
 			return
 		}
 
 		if err = h.OrderManager.AddOrder(r.Context(), int64(userID), string(orderNumber)); err != nil {
 			switch {
 			case errors.Is(err, internal_error.ErrInvalidOrderNumber):
-				logger.Log.Info(err.Error())
-				w.WriteHeader(http.StatusUnprocessableEntity)
+				handleError(w, http.StatusUnprocessableEntity, err)
 				return
 			case errors.Is(err, internal_error.ErrOrderAlreadyExists):
-				logger.Log.Info(err.Error())
 				w.WriteHeader(http.StatusOK)
 				return
 			case errors.Is(err, internal_error.ErrOrderAlreadyExistsForAnotherUser):
-				logger.Log.Info(err.Error())
-				w.WriteHeader(http.StatusConflict)
+				handleError(w, http.StatusConflict, err)
 				return
 			default:
-				w.WriteHeader(http.StatusInternalServerError)
-				logger.Log.Info("failed to add order", zap.Error(err))
+				handleError(w, http.StatusInternalServerError, err)
 				return
 			}
 		}
@@ -168,19 +161,17 @@ func (h *Handler) Orders() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, err := getUserID(r)
 		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
+			handleError(w, http.StatusUnauthorized, err)
 			return
 		}
 		orders, err := h.Storage.GetOrders(r.Context(), int64(userID))
 		if err != nil {
 			switch {
 			case errors.Is(err, internal_error.ErrOrderNotFound):
-				w.WriteHeader(http.StatusNoContent)
-				logger.Log.Info("orders not found", zap.Error(err))
+				handleError(w, http.StatusNoContent, err)
 				return
 			default:
-				w.WriteHeader(http.StatusInternalServerError)
-				logger.Log.Info("internal error", zap.Error(err))
+				handleError(w, http.StatusInternalServerError, err)
 				return
 			}
 		}
@@ -191,8 +182,7 @@ func (h *Handler) Orders() func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err = json.NewEncoder(w).Encode(result); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			logger.Log.Info("failed to encode orders", zap.Error(err))
+			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
 	}
@@ -203,22 +193,17 @@ func (h *Handler) Balance() func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		userID, err := getUserID(r)
 		if err != nil {
-			w.Write([]byte(err.Error()))
-			w.WriteHeader(http.StatusUnauthorized)
+			handleError(w, http.StatusUnauthorized, err)
 			return
 		}
 		balance, err := h.Storage.GetBalance(r.Context(), int64(userID))
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
-			logger.Log.Info("internal error", zap.Error(err))
+			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
 		if err = json.NewEncoder(w).Encode(dto.Balance{Current: balance.Balance, Withdrawn: balance.Withdrawn}); err != nil {
-			w.Write([]byte(err.Error()))
-			w.WriteHeader(http.StatusInternalServerError)
-			logger.Log.Info("failed to encode balance", zap.Error(err))
+			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
 	}
@@ -228,34 +213,26 @@ func (h *Handler) Withdraw() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, err := getUserID(r)
 		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
+			handleError(w, http.StatusUnauthorized, err)
 			return
 		}
 		var withDraw dto.Withdraw
 		err = json.NewDecoder(r.Body).Decode(&withDraw)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			logger.Log.Info(err.Error())
-			w.Write([]byte(err.Error()))
+			handleError(w, http.StatusBadRequest, err)
 			return
 		}
 		err = h.OrderManager.WithdrawOrder(r.Context(), userID, withDraw.Order, withDraw.Sum)
 		if err != nil {
 			switch {
 			case errors.Is(err, internal_error.ErrInvalidWithdrawSum):
-				logger.Log.Info(err.Error())
-				w.Write([]byte(err.Error()))
-				w.WriteHeader(http.StatusPaymentRequired)
+				handleError(w, http.StatusPaymentRequired, err)
 				return
 			case errors.Is(err, internal_error.ErrInvalidOrderNumber):
-				logger.Log.Info(err.Error())
-				w.Write([]byte(err.Error()))
-				w.WriteHeader(http.StatusUnprocessableEntity)
+				handleError(w, http.StatusUnprocessableEntity, err)
 				return
 			default:
-				logger.Log.Info(err.Error())
-				w.Write([]byte(err.Error()))
-				w.WriteHeader(http.StatusInternalServerError)
+				handleError(w, http.StatusInternalServerError, err)
 			}
 
 		}
@@ -267,19 +244,17 @@ func (h *Handler) Withdrawals() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, err := getUserID(r)
 		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
+			handleError(w, http.StatusUnauthorized, err)
 			return
 		}
-		operations, err := h.Storage.GetOperations(r.Context(), userID, string(storage.Withdraw))
+		operations, err := h.Storage.GetOperations(r.Context(), userID, string(models.Withdraw))
 		if err != nil {
 			switch {
 			case errors.Is(err, internal_error.ErrWithdrawalNotFound):
-				w.WriteHeader(http.StatusNoContent)
-				logger.Log.Info(" Withdrawal not found", zap.Error(err))
+				handleError(w, http.StatusNoContent, err)
 				return
 			default:
-				w.WriteHeader(http.StatusInternalServerError)
-				logger.Log.Info("internal error", zap.Error(err))
+				handleError(w, http.StatusInternalServerError, err)
 				return
 			}
 		}
@@ -290,9 +265,14 @@ func (h *Handler) Withdrawals() func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err = json.NewEncoder(w).Encode(result); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			logger.Log.Info("failed to encode operations", zap.Error(err))
+			handleError(w, http.StatusInternalServerError, err)
 			return
 		}
 	}
+}
+
+func handleError(w http.ResponseWriter, errorCode int, err error) {
+	w.WriteHeader(errorCode)
+	w.Write([]byte(err.Error()))
+	logger.Log.Error(err.Error())
 }

@@ -9,6 +9,7 @@ import (
 	internal_error "github.com/megaded/market/internal/error"
 	"github.com/megaded/market/internal/logger"
 	"github.com/megaded/market/internal/storage"
+	"github.com/megaded/market/internal/storage/models"
 	"go.uber.org/zap"
 )
 
@@ -51,7 +52,7 @@ func (p *AccrualProcessor) processPendingOrders(ctx context.Context, workerCount
 		return
 	}
 
-	jobs := make(chan storage.Order)
+	jobs := make(chan models.Order)
 	var wg sync.WaitGroup
 
 	for i := 0; i < workerCount; i++ {
@@ -83,7 +84,7 @@ func (p *AccrualProcessor) processPendingOrders(ctx context.Context, workerCount
 	wg.Wait()
 }
 
-func (p *AccrualProcessor) processOrder(ctx context.Context, order storage.Order) {
+func (p *AccrualProcessor) processOrder(ctx context.Context, order models.Order) {
 	response := p.client.GetOrderStatus(ctx, order.Number)
 	if response.Error != nil {
 		logger.Log.Info("failed to get order info", zap.String("order_number", order.Number), zap.Error(response.Error))
@@ -102,7 +103,7 @@ func (p *AccrualProcessor) processOrder(ctx context.Context, order storage.Order
 	}
 
 	var newAccrual float64
-	if response.Response.Status == string(storage.OrderStatusProcessed) {
+	if response.Response.Status == string(models.OrderStatusProcessed) {
 		newAccrual = response.Response.Accrual
 	}
 
