@@ -21,10 +21,10 @@ type Storager interface {
 	CreateUser(ctx context.Context, login string, hash string) (User, error)
 	GetUser(ctx context.Context, login string) (User, error)
 	GetProcessingOrders(ctx context.Context) ([]Order, error)
-	UpdateOrder(ctx context.Context, number string, status string, accrual float64) error
-	Accrual(ctx context.Context, userID int, orderNumber string, amount float64) error
-	Withdraw(ctx context.Context, userID int, orderNumber string, amount float64) error
-	CreateOperation(ctx context.Context, userID int, orderNumber string, operationType string, value float64) error
+	UpdateOrder(ctx context.Context, number string, status string, accrual uint) error
+	Accrual(ctx context.Context, userID int, orderNumber string, amount uint) error
+	Withdraw(ctx context.Context, userID int, orderNumber string, amount uint) error
+	CreateOperation(ctx context.Context, userID int, orderNumber string, operationType string, value uint) error
 	GetOperations(ctx context.Context, userID int, operationType string) ([]Operation, error)
 }
 
@@ -47,13 +47,13 @@ func (s *storage) GetOperations(ctx context.Context, userID int, operationType s
 	}
 }
 
-func (s *storage) CreateOperation(ctx context.Context, userID int, orderNumber string, operationType string, value float64) error {
-	operation := Operation{UserID: uint(userID), Order: orderNumber, Value: value, OperationType: operationType}
+func (s *storage) CreateOperation(ctx context.Context, userID int, orderNumber string, operationType string, value uint) error {
+	operation := Operation{UserID: uint(userID), OrderNumber: orderNumber, Value: value, OperationType: operationType}
 	r := s.db.WithContext(ctx).Create(&operation)
 	return r.Error
 }
 
-func (s *storage) Withdraw(ctx context.Context, userID int, orderNumber string, amount float64) error {
+func (s *storage) Withdraw(ctx context.Context, userID int, orderNumber string, amount uint) error {
 	db := s.db.WithContext(ctx)
 	db.Begin()
 	defer db.Commit()
@@ -62,7 +62,7 @@ func (s *storage) Withdraw(ctx context.Context, userID int, orderNumber string, 
 	if r.Error != nil {
 		return r.Error
 	}
-	newBalance := math.Round((balance.Balance-amount)*100) / 100
+	newBalance := math.Round(()*100) / 100
 	if err := db.Model(Balance{}).Where("user_id = ?", userID).Select("balance", "withdrawn").Updates(map[string]interface{}{"balance": newBalance, "withdrawn": balance.Withdrawn + amount}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return internal_error.ErrOrderNotFound
