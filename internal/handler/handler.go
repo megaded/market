@@ -120,7 +120,7 @@ func (h *Handler) LoadOrder() func(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if r.Header.Get("Content-Type") != "text/plain" {
-			handleError(w, http.StatusBadRequest, errors.New("Invalid content type"))
+			handleError(w, http.StatusBadRequest, internal_error.ErrInvalidContentType)
 			return
 		}
 
@@ -131,7 +131,7 @@ func (h *Handler) LoadOrder() func(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if len(orderNumber) == 0 {
-			handleError(w, http.StatusBadRequest, errors.New("Orders not found"))
+			handleError(w, http.StatusBadRequest, internal_error.ErrOrderNotFound)
 			return
 		}
 
@@ -259,7 +259,7 @@ func (h *Handler) Withdrawals() func(w http.ResponseWriter, r *http.Request) {
 		}
 		result := make([]dto.Withdraw, 0, len(operations))
 		for _, op := range operations {
-			result = append(result, dto.Withdraw{Order: op.OrderNumber, Sum: op.Value, ProcessedAt: op.CreatedAt})
+			result = append(result, dto.Withdraw{Order: op.OrderNumber, Sum: float64(op.Value), ProcessedAt: op.CreatedAt})
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)

@@ -18,7 +18,7 @@ type Accrual struct {
 
 type Withdraw struct {
 	Order       string    `json:"order"`
-	Sum         uint      `json:"sum"`
+	Sum         float64   `json:"sum"`
 	ProcessedAt time.Time `json:"processed_at"`
 }
 

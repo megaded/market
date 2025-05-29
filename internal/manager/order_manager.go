@@ -67,16 +67,17 @@ func (m *OrderManager) AccrualOrder(ctx context.Context, number string, accrual 
 	return m.storage.AccrualOrder(ctx, number, newBalance, accrual)
 }
 
-func (m *OrderManager) WithdrawOrder(ctx context.Context, userID uint, number string, withdraw uint) error {
+func (m *OrderManager) WithdrawOrder(ctx context.Context, userID uint, number string, withdraw float64) error {
+	wd := uint(withdraw)
 	balance, err := m.storage.GetBalance(ctx, userID)
 	if err != nil {
 		return err
 	}
-	if balance.Balance < withdraw {
+	if balance.Balance < wd {
 		return internal_error.ErrInvalidWithdrawSum
 	}
 
-	err = m.storage.Withdraw(ctx, userID, number, balance.Balance-withdraw, balance.Withdrawn+withdraw)
+	err = m.storage.Withdraw(ctx, userID, number, balance.Balance-wd, balance.Withdrawn+wd)
 	return err
 }
 
