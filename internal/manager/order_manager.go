@@ -6,10 +6,20 @@ import (
 
 	internal_error "github.com/megaded/market/internal/error"
 	"github.com/megaded/market/internal/storage"
+	"github.com/megaded/market/internal/storage/models"
 )
 
+type OrderStorager interface {
+	GetOrder(ctx context.Context, orderNumber string) (models.Order, error)
+	CreateOrder(ctx context.Context, userID int64, orderNumber string) (models.Order, error)
+	UpdateOrder(ctx context.Context, number string, status string, accrual float64) error
+	Accrual(ctx context.Context, userID int, orderNumber string, amount float64) error
+	GetBalance(ctx context.Context, userID int64) (models.Balance, error)
+	Withdraw(ctx context.Context, userID int, orderNumber string, amount float64) error
+}
+
 type OrderManager struct {
-	storage storage.Storager
+	storage OrderStorager
 }
 
 func CreateOrderManager(storage storage.Storager) OrderManager {

@@ -11,9 +11,9 @@ type User struct {
 }
 
 type Accrual struct {
-	Order   string
-	Status  string
-	Accrual float64
+	Order   string  `json:"order"`
+	Status  string  `json:"status"`
+	Accrual float64 `json:"accrual"`
 }
 
 type Withdraw struct {

@@ -17,6 +17,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	internalSecond = 15
+	workerCount    = 5
+)
+
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
@@ -31,22 +36,28 @@ func main() {
 	if err != nil {
 		logger.Log.Fatal("failed to connect to database", zap.Error(err))
 	}
+	err = db.Ping()
+	if err != nil {
+		logger.Log.Fatal("failed ping to database", zap.Error(err))
+	}
 	err = migrate(db)
 	if err != nil {
 		logger.Log.Fatal("failed migrate", zap.Error(err))
 	}
-	storage := storage.NewStorage(&cfg)
+	storage := storage.NewStorage(cfg)
 	client := manager.CreateAccrualClient(cfg.AccrualSystemAddress)
 	accrualProcessor := manager.NewAccrualProcessor(storage, &client)
-	go accrualProcessor.Run(ctx, 15, 5)
+	go accrualProcessor.Run(ctx, internalSecond, workerCount)
 
 	s := server.CreateServer(ctx, cfg, storage)
-	s.Start(ctx)
+	if err := s.Start(ctx); err != nil {
+		logger.Log.Fatal("server failed", zap.Error(err))
+	}
 }
 
 func migrate(db *sql.DB) error {
 	if err := goose.SetDialect("postgres"); err != nil {
-		return nil
+		return err
 	}
 	if err := goose.Up(db, "migrations"); err != nil {
 		return err
