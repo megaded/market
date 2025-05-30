@@ -29,7 +29,7 @@ type Order struct {
 	UserID  uint
 	User    User
 	Number  string
-	Accrual uint
+	Accrual float64
 	Status  OrderStatus
 }
 
@@ -37,8 +37,8 @@ type Balance struct {
 	gorm.Model
 	UserID    uint
 	User      User
-	Balance   uint
-	Withdrawn uint
+	Balance   float64
+	Withdrawn float64
 }
 
 type Operation struct {
@@ -47,5 +47,5 @@ type Operation struct {
 	User          User
 	OrderNumber   string
 	OperationType string
-	Value         uint
+	Value         float64
 }

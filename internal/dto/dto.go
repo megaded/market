@@ -25,7 +25,7 @@ type Withdraw struct {
 type Order struct {
 	Number     string    `json:"number"`
 	Status     string    `json:"status"`
-	Accrual    uint      `json:"accrual"`
+	Accrual    float64   `json:"accrual"`
 	UploadedAt time.Time `json:"uploaded_at"`
 }
 
@@ -56,6 +56,6 @@ func (o Order) MarshalJSON() ([]byte, error) {
 }
 
 type Balance struct {
-	Current   uint `json:"current"`
-	Withdrawn uint `json:"withdrawn"`
+	Current   float64 `json:"current"`
+	Withdrawn float64 `json:"withdrawn"`
 }

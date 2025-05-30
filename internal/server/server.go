@@ -22,9 +22,9 @@ type Storager interface {
 	GetUserByOrderNumber(ctx context.Context, orderNumber string) (models.User, error)
 	GetUser(ctx context.Context, login string) (models.User, error)
 	GetProcessingOrders(ctx context.Context) ([]models.Order, error)
-	UpdateOrder(ctx context.Context, number string, status string, accrual uint) (models.Order, error)
-	AccrualOrder(ctx context.Context, number string, newBalance uint, accrual uint) error
-	Withdraw(ctx context.Context, userID uint, orderNumber string, newBalance uint, amount uint) error
+	UpdateOrder(ctx context.Context, number string, status string, accrual float64) (models.Order, error)
+	AccrualOrder(ctx context.Context, number string, newBalance float64, accrual float64) error
+	Withdraw(ctx context.Context, userID uint, orderNumber string, newBalance float64, amount float64) error
 	GetOperations(ctx context.Context, userID uint, operationType string) ([]models.Operation, error)
 }
 

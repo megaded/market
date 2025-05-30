@@ -3,6 +3,7 @@ package manager
 import (
 	"context"
 	"errors"
+	"math"
 
 	internal_error "github.com/megaded/market/internal/error"
 	"github.com/megaded/market/internal/storage/models"
@@ -11,10 +12,10 @@ import (
 type OrderStorager interface {
 	GetOrder(ctx context.Context, orderNumber string) (models.Order, error)
 	CreateOrder(ctx context.Context, userID uint, orderNumber string) (models.Order, error)
-	AccrualOrder(ctx context.Context, number string, newBalance uint, accrual uint) error
+	AccrualOrder(ctx context.Context, number string, newBalance float64, accrual float64) error
 	GetBalance(ctx context.Context, userID uint) (models.Balance, error)
-	Withdraw(ctx context.Context, userID uint, orderNumber string, newBalance uint, amount uint) error
-	UpdateOrder(ctx context.Context, number string, status string, accrual uint) (models.Order, error)
+	Withdraw(ctx context.Context, userID uint, orderNumber string, newBalance float64, amount float64) error
+	UpdateOrder(ctx context.Context, number string, status string, accrual float64) (models.Order, error)
 	GetUserByOrderNumber(ctx context.Context, orderNumber string) (models.User, error)
 }
 
@@ -54,7 +55,7 @@ func (m *OrderManager) AddOrder(ctx context.Context, userID uint, orderNumber st
 	return nil
 }
 
-func (m *OrderManager) AccrualOrder(ctx context.Context, number string, accrual uint) error {
+func (m *OrderManager) AccrualOrder(ctx context.Context, number string, accrual float64) error {
 	user, err := m.storage.GetUserByOrderNumber(ctx, number)
 	if err != nil {
 		return err
@@ -63,21 +64,19 @@ func (m *OrderManager) AccrualOrder(ctx context.Context, number string, accrual 
 	if err != nil {
 		return err
 	}
-	newBalance := balance.Balance + accrual
-	return m.storage.AccrualOrder(ctx, number, newBalance, accrual)
+
+	return m.storage.AccrualOrder(ctx, number, math.Round((balance.Balance+accrual)*100)/100, accrual)
 }
 
 func (m *OrderManager) WithdrawOrder(ctx context.Context, userID uint, number string, withdraw float64) error {
-	wd := uint(withdraw)
 	balance, err := m.storage.GetBalance(ctx, userID)
 	if err != nil {
 		return err
 	}
-	if balance.Balance < wd {
+	if balance.Balance < withdraw {
 		return internal_error.ErrInvalidWithdrawSum
 	}
-
-	err = m.storage.Withdraw(ctx, userID, number, balance.Balance-wd, balance.Withdrawn+wd)
+	err = m.storage.Withdraw(ctx, userID, number, math.Round((balance.Balance-withdraw)*100)/100, math.Round((balance.Withdrawn+withdraw)*100)/100)
 	return err
 }
 

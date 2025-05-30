@@ -106,7 +106,7 @@ func (p *AccrualProcessor) processOrder(ctx context.Context, order models.Order)
 	}
 
 	if response.Response.Status == string(models.OrderStatusProcessed) {
-		if err := p.orderManager.AccrualOrder(ctx, order.Number, uint(response.Response.Accrual)); err != nil {
+		if err := p.orderManager.AccrualOrder(ctx, order.Number, response.Response.Accrual); err != nil {
 			logger.Log.Info("failed to update order accrual", zap.String("order_number", order.Number), zap.Error(err))
 			return
 		}
